@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 # name:		zsh.uninstall.sh
 # desc:		Remove Zsh configuration and restore previous shell
 # author:	Alex Candido <github:alxcsx>
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../.utils/common.sh"
 
 validate_module_context

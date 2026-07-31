@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 # name:		zsh.requirements.sh
 # desc:		requirements for zsh module
 # author:	Alex Candido <github:alxcsx>
 set -e 
-source "$(cd "$(dirname "$0")" && pwd)/../.utils/packages.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../.utils/packages.sh"
 
 echo "Installing ZSH requirements for OS: $OS | Distro: $DISTRO"
 echo "---------------------------------------------------------"

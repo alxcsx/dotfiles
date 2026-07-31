@@ -4,8 +4,8 @@ export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_STATE_HOME="$HOME/.local/state"
 #-------Editor------
-export VISUAL="emacs -nw"
-export EDITOR="emacs -nw"
+export VISUAL="emacsclient"
+export EDITOR="emacsclient"
 #------ GPG -------
 export GPG_TTY=$(tty)
 #------ PATH-------

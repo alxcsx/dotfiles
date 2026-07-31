@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # name:		dot.sh
 # desc:		Dotfiles Manager
 # author:	Alex Candido <github:alxcsx>
@@ -87,4 +87,4 @@ for module in $MODULES; do
     fi
 done
 
-echo "\n[i] All done!"
+echo "[i] All done!"

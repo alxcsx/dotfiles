@@ -1,17 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 # name:		zsh.install.sh
 # desc:		Install Zsh configuration and set as default shell
 # author:	Alex Candido <github:alxcsx>
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../.utils/common.sh"
-
 validate_module_context
 
 # Check requirements first using DSL
 echo ""
 echo "[i] Checking system requirements..."
-if ! sh "$SCRIPT_DIR/requirements.sh" 2>&1 | grep -q "All dependencies satisfied"; then
+if ! sh "$SCRIPT_DIR/requirements.sh"; then
     echo "[!] Please install missing dependencies before proceeding."
     exit 1
 fi

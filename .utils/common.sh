@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # name:		common.sh
 # desc:		Shared helper functions for dotfiles management
 # author:	Alex Candido <github:alxcsx>
