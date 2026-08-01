@@ -10,6 +10,22 @@ if [ -z "$STATE_FILE" ]; then
     [ ! -f "$STATE_FILE" ] && touch "$STATE_FILE"
 fi
 
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    BOLD='\033[1m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    BOLD=''
+    NC=''
+fi
+
 # Get short git commit hash
 get_git_hash() {
     git rev-parse --short HEAD 2>/dev/null || echo "unknown"
@@ -17,7 +33,7 @@ get_git_hash() {
 
 validate_module_context() {
     if [ -z "$DOTFILES_DIR" ]; then
-        echo "[!] Error: This script must be called via dot.sh"
+        echo -e "${RED}[!] Error: This script must be called via dot.sh${NC}"
         exit 1
     fi
 }
@@ -38,4 +54,34 @@ remove_state() {
     local module=$1
     grep -v "^${module}|" "$STATE_FILE" > "$STATE_FILE.tmp" 2>/dev/null
     mv "$STATE_FILE.tmp" "$STATE_FILE"
+}
+
+check_requirements() {
+    local module_dir="$1"
+    local req_file="$module_dir/requirements.sh"
+    
+    if [ -f "$req_file" ]; then
+        echo ""
+        echo -e "${BLUE}[i]${NC} Checking system requirements for module..."
+        if ! sh "$req_file"; then
+            echo -e "${RED}[!] Please install missing dependencies before proceeding.${NC}"
+            exit 1
+        fi
+    fi
+}
+
+require_mod() {
+    local required_mod
+    
+    # Loop through all arguments passed to the function
+    for required_mod in "$@"; do
+        if grep -q "^${required_mod}|installed|" "$STATE_FILE" 2>/dev/null; then
+            # Use GREEN for success
+            echo -e "  -> ${GREEN}[OK]${NC} Module '${BOLD}$required_mod${NC}' is installed."
+        else
+            # Use YELLOW for warnings
+            echo -e "  -> ${YELLOW}[!] Warning:${NC} Recommended module '${BOLD}$required_mod${NC}' is not installed."
+            echo -e "         Consider running: ./dot.sh install $required_mod"
+        fi
+    done
 }

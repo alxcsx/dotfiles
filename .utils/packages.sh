@@ -7,6 +7,22 @@ set -e
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 DISTRO=""
 
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    BOLD='\033[1m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    BOLD=''
+    NC=''
+fi
+
 if [[ "$OS" == "linux" ]]; then
     if [[ -f /etc/os-release ]]; then
         source /etc/os-release
@@ -38,7 +54,7 @@ install_package() {
     local pkg="$1"
     shift
     local flags=("$@")
-    echo "  > Installing $pkg via package manager..."
+    echo -e "  ${BOLD}${BLUE}> Installing $pkg via package manager...${NC}"
     case "$DISTRO" in
         macos)
             local type="--formula"
@@ -54,7 +70,7 @@ install_package() {
             then 
                 if command -v yay >/dev/null 2>&1; 
                 then yay -S --noconfirm "$pkg"
-                else echo "  ! 'yay' is required to install $pkg but is not installed."; exit 1; 
+                else echo -e "${RED}[!] 'yay' is required to install $pkg but is not installed.${NC}"; exit 1; 
                 fi
             else 
                 sudo pacman -S --noconfirm "$pkg"
@@ -64,7 +80,7 @@ install_package() {
             sudo dnf install -y "$pkg" 
             ;;
         *) 
-            echo "  ! Unsupported distribution for automatic install: $DISTRO"; exit 1 
+            echo -e "${RED}[!] Unsupported distribution for automatic install: $DISTRO ${NC}"; exit 1 
             ;;
     esac
 }
@@ -110,7 +126,7 @@ is_installed() {
         local target_cmd=$(value_or_default "OVERRIDE_CMD_${safe_pkg}_${DISTRO}" "$target_pkg")
         
         if command -v "$target_cmd" >/dev/null 2>&1; then
-            echo "[OK] $target_pkg is already installed (found command: $target_cmd)."
+            echo -e "${GREEN}[OK]${NC} $target_pkg is already installed (found command: $target_cmd)."
             return 0
         else
             return 1
@@ -149,20 +165,20 @@ require() {
     local target_pkg="$(value_or_default "OVERRIDE_PKG_${safe_pkg}_${DISTRO}" "$base_pkg")"
         
     if is_installed "$base_pkg" "${flags[@]}"; then
-        echo "[OK] $target_pkg is already installed (verified via package manager)."
+        echo -e "${GREEN}[OK]${NC} $target_pkg is already installed (verified via package manager)."
         return 0
     fi
     
-    echo "[INSTALL] Missing $target_pkg. Installing..."
+    echo -e "${BLUE}[INSTALL]${NC} Missing $target_pkg. Installing..."
     
     local custom_installer=$(get_custom_install "$safe_pkg" "$DISTRO")
     local global_custom_installer=$(get_custom_install "$safe_pkg" "all")
     # 3. Execute installation
     if [[ -n "$custom_installer" ]]; then
-        echo "  > Running distro-specific custom installer..."
+        echo -e "${BOLD} > Running distro-specific custom installer...${NC}"
         eval "$custom_installer"
     elif [[ -n "$global_custom_installer" ]]; then
-        echo "  > Running global custom installer..."
+        echo -e "${BOLD}  > Running global custom installer...${NC}"
         eval "$global_custom_installer"
     else
         install_package "$target_pkg" "${flags[@]}"

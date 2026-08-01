@@ -5,15 +5,9 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../.utils/common.sh"
-validate_module_context
 
-# Check requirements first using DSL
-echo ""
-echo "[i] Checking system requirements..."
-if ! sh "$SCRIPT_DIR/requirements.sh"; then
-    echo "[!] Please install missing dependencies before proceeding."
-    exit 1
-fi
+validate_module_context
+check_requirements "$SCRIPT_DIR"
 
 ZSH_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
 BACKUP_DIR="$ZSH_DEST/backup"
