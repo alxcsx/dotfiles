@@ -6,6 +6,14 @@ set -e
 # META
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 DISTRO=""
+if [[ "$OS" == "linux" ]]; then
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+        DISTRO="$ID"
+    fi
+    elif [[ "$OS" == "darwin" ]]; then
+    DISTRO="macos"
+fi
 
 if [ -t 1 ]; then
     RED='\033[0;31m'
@@ -21,15 +29,6 @@ else
     BLUE=''
     BOLD=''
     NC=''
-fi
-
-if [[ "$OS" == "linux" ]]; then
-    if [[ -f /etc/os-release ]]; then
-        source /etc/os-release
-        DISTRO="$ID"
-    fi
-    elif [[ "$OS" == "darwin" ]]; then
-    DISTRO="macos"
 fi
 
 # HELPERS
