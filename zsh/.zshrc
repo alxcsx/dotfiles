@@ -18,8 +18,6 @@ setopt NUMERIC_GLOB_SORT
 
 # --- ZOXIDE 
 eval "$(zoxide init zsh)"
-# --- MISE
-eval "$(mise activate zsh)"
 
 # --- AUTOCOMPLETE
 
@@ -43,3 +41,7 @@ source "$ZDOTDIR/modules/aliases.zsh"
 source "$ZDOTDIR/modules/bindings.zsh"
 source "$ZDOTDIR/modules/plugins.zsh"
 source "$ZDOTDIR/modules/prompt.zsh"
+
+# --- SPECIAL MODULES 
+# changes that aren't tracked in git
+[-f "$ZDOTDIR/.zshrc.local"] && source "$ZDOTDIR/.zshrc.local"  
