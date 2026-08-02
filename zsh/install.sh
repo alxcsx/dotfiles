@@ -35,7 +35,7 @@ fi
 
 if ! grep -q "ZDOTDIR=" "$ZSHENV_PATH" 2>/dev/null; then
     echo "  -> Requesting sudo to set global ZDOTDIR in $ZSHENV_PATH..."
-    sudo tee -a "$ZSHENV_PATH" >> /dev/null <<- 'SHELL'
+    sudo tee -a "$ZSHENV_PATH" >> /dev/null <<- SHELL
     # Custom Zsh directory configuration
     export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
     export ZDOTDIR="$XDG_CONFIG_HOME/zsh"

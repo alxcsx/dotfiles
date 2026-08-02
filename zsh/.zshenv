@@ -15,3 +15,8 @@ export PATH="$HOME/bin:$PATH"
 export MANPAGER="bat -l man -p"
 # ---------- Starship ----------
 export STARSHIP_CONFIG="$ZDOTDIR/modules/starship.toml"
+# ----------- MISC  ----------
+export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
+
+export GNUPGHOME="$XDG_DATA_HOME/gnupg"
+mkdir -p "$HOME/.local/share/gnupg" && chmod 700 "$HOME/.local/share/gnupg"
