@@ -162,12 +162,12 @@ _append_rc_module() {
 
     # If the source line is not already present, append it.
     if ! grep -q "$marker" "$rc_file"; then
-        \cat >> "$rc_file" <<- SHELL
+        \cat >> "$rc_file" <<- 'SHELL'
             $marker
             # Injected by dotfiles '${module_name}' module
             $source_line
             $marker_end
-        SHELL
+SHELL
     else
         echo -e "${YELLOW}[!]${NC} RC Append '$module_name' already configured in $rc_file. Skipping."
     fi
@@ -175,13 +175,13 @@ _append_rc_module() {
     mkdir -p "$dotsh_dir"
     
     # Overwrite the module file
-    \cat > "$module_file" <<- SHELL
-        #!/usr/bin/env $shebang
-        $marker
-        # Injected by dotfiles '${module_name}' module
-        $content
-        $marker_end
-    SHELL
+    \cat > "$module_file" <<- 'SHELL'
+		#!/usr/bin/env $shebang
+		$marker
+		# Injected by dotfiles '${module_name}' module
+		$content
+		$marker_end
+SHELL
 
     chmod +x "$module_file"
     echo -e "${GREEN}[OK]${NC} Appended ${module_name} configuration to $rc_file"

@@ -1,5 +1,5 @@
 # ls -> eza
-alias ls='eza --icons'
+alias ls='eza --icons always'
 alias ll='eza -lh --icons --git'
 alias la='eza -lah --icons --git'
 alias tree='eza --tree --icons --git'

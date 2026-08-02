@@ -44,4 +44,4 @@ source "$ZDOTDIR/modules/prompt.zsh"
 
 # --- SPECIAL MODULES 
 # changes that aren't tracked in git
-[-f "$ZDOTDIR/.zshrc.local"] && source "$ZDOTDIR/.zshrc.local"  
+[ -f "$ZDOTDIR/.zshrc.local" ] && source "$ZDOTDIR/.zshrc.local"  

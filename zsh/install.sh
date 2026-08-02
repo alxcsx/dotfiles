@@ -12,18 +12,17 @@ check_requirements "$SCRIPT_DIR"
 ZSH_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
 BACKUP_DIR="$ZSH_DEST/backup"
 
-echo "[i] Starting Zsh configuration..."
+echo -e "${BLUE}[i]${NC} Starting Zsh configuration..."
 
 # Check if Zsh is installed
-ZSH_PATH="$(command -v zsh)"
-if [ -z "$ZSH_PATH" ]; then
-    echo "[!] Error: Zsh is not installed on this system. Please install it first."
+if ! command -v zsh >/dev/null 2>&1; then
+    echo -e "${RED}[!]${NC} Error: Zsh is not installed on this system. Please install it first."
     exit 1
 fi
 
 # 1. Configure global ZDOTDIR
 echo ""
-echo "[-] Configuring global ZDOTDIR..."
+echo -e "${GREEN}[-]${NC} Configuring global ZDOTDIR..."
 
 OS="$(uname -s)"
 if [ "$OS" = "Darwin" ]; then
@@ -36,7 +35,7 @@ fi
 
 if ! grep -q "ZDOTDIR=" "$ZSHENV_PATH" 2>/dev/null; then
     echo "  -> Requesting sudo to set global ZDOTDIR in $ZSHENV_PATH..."
-    sudo tee -a "$ZSHENV_PATH" >> /dev/null << 'SHELL'
+    sudo tee -a "$ZSHENV_PATH" >> /dev/null <<- 'SHELL'
     # Custom Zsh directory configuration
     export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
     export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
@@ -48,7 +47,7 @@ fi
 
 # 2. Create XDG directories
 echo ""
-echo "[-] Creating XDG directories..."
+echo -e "${GREEN}[-]${NC} Creating XDG directories..."
 
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
@@ -60,7 +59,7 @@ echo "  -> Created directories."
 
 # 3. Create symlinks for config files
 echo ""
-echo "[-] Creating symlinks..."
+echo -e "${GREEN}[-]${NC} Creating symlinks..."
 
 ZSH_SRC="$DOTFILES_DIR/zsh"
 
@@ -85,9 +84,16 @@ fi
 
 # 5. Change default shell to Zsh
 echo ""
-echo "[-] Setting Zsh as default shell..."
+echo -e "${GREEN}[-]${NC} Setting Zsh as default shell..."
 
 CURRENT_SHELL="$SHELL"
+
+ZSH_PATH=$(grep -m 1 -E '/zsh$' /etc/shells)
+
+if [ -z "$ZSH_PATH" ]; then
+    echo -e "${RED}[!]${NC} Error: zsh is installed, but no valid path was found in /etc/shells."
+    exit 1
+fi
 
 if [ "$CURRENT_SHELL" != "$ZSH_PATH" ]; then
     echo "  -> Current shell is: $CURRENT_SHELL"
@@ -99,7 +105,7 @@ if [ "$CURRENT_SHELL" != "$ZSH_PATH" ]; then
     echo "  -> Changing default shell to Zsh (requires password)..."
     chsh -s "$ZSH_PATH"
     if [ $? -ne 0 ]; then
-        echo "[!] Warning: Failed to change shell. Run: chsh -s $(command -v zsh)"
+        echo -e "${YELLOW}[!]${NC} Warning: Failed to change shell. Run: chsh -s $(command -v zsh)"
     else
         echo "  -> Shell changed successfully."
     fi
