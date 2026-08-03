@@ -12,31 +12,31 @@ source "$DOTFILES_DIR/.utils/common.sh"
 
 # Helper Functions
 print_help() {
-    echo "Help: $0 <command> [modules...]"
+    printfln "${BLUE}Help:${NC} $0 <command> [modules...]"
     echo ""
-    echo "Commands:"
-    echo "  install    Install [modules...]"
-    echo "  uninstall  Uninstall [modules...]"
-    echo "  status     Show status of all managed modules"
+    printfln "${BLUE}Commands:${NC}"
+    printfln "  ${GREEN}install${NC}    Install [modules...]"
+    printfln "  ${GREEN}uninstall${NC}  Uninstall [modules...]"
+    printfln "  ${GREEN}status${NC}     Show status of all managed modules"
     echo ""
-    echo "Examples:"
-    echo "  $0 install"
-    echo "  $0 install zsh mac"
-    echo "  $0 uninstall emacs"
-    echo "  $0 status"
+    printfln "${BLUE}Examples:${NC}"
+    printfln "  ${YELLOW}$0 install${NC}"
+    printfln "  ${YELLOW}$0 install zsh mac${NC}"
+    printfln "  ${YELLOW}$0 uninstall emacs${NC}"
+    printfln "  ${YELLOW}$0 status${NC}"
     exit 1
 }
 
 
 if [ "$COMMAND" = "status" ]; then
-    echo "Managed Modules Status:"
-    echo "---------------------------"
+    printfln "${BLUE}Managed Modules Status:${NC}"
+    printfln "${BLUE}---------------------------${NC}"
     if [ -s "$STATE_FILE" ]; then
         while IFS='|' read -r mod stat ver; do
             printf "%-10s | %-10s | %s\n" "$mod" "$stat" "$ver"
         done < "$STATE_FILE"
     else
-        echo "No managed modules found."
+        printfln "${YELLOW}No managed modules found.${NC}"
     fi
     exit 0
 fi
@@ -52,21 +52,21 @@ esac
 if [ $# -gt 0 ]; then
     MODULES="$@"
 else
-    echo "[!] Error: You must explicitly specify which modules to use."
+    printfln "${RED}[!] Error: You must explicitly specify which modules to use.${NC}"
     echo ""
     print_help
 fi
 
-echo "[i] Starting $COMMAND process..."
+printfln "${BLUE}[i]${NC} Starting $COMMAND process..."
 
 for module in $MODULES; do
     SCRIPT_PATH="$DOTFILES_DIR/$module/$COMMAND.sh"
 
     if [ -f "$SCRIPT_PATH" ]; then
         if [ "$COMMAND" = "install" ]; then
-            echo "\n[+] Installing: $module"
+            printfln "${GREEN}[+]${NC} Installing: $module"
         else
-            echo "\n[-] Uninstalling: $module"
+            printfln "${YELLOW}[-]${NC} Uninstalling: $module"
         fi
 
         # Execute the module script with DOTFILES_DIR in environment
@@ -80,11 +80,11 @@ for module in $MODULES; do
                 remove_state "$module"
             fi
         else
-            echo "\n[!] Error: $module $COMMAND failed. State not updated."
+            printfln "${RED}[!] Error: $module $COMMAND failed. State not updated.${NC}"
         fi
     else
-        echo "\n[!] Warning: Module '$module' is missing '$COMMAND.sh'"
+        printfln "${YELLOW}[!] Warning:${NC} Module '$module' is missing '$COMMAND.sh'"
     fi
 done
 
-echo "[i] All done!"
+printfln "${GREEN}[i]${NC} All done!"

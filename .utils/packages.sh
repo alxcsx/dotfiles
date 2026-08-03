@@ -32,6 +32,12 @@ else
 fi
 
 # HELPERS
+printfln() {
+    local format="$1"
+    shift
+    printf "${format}\n" "$@"
+}
+
 has_flag() {
     local search="$1"
     shift
@@ -53,7 +59,7 @@ install_package() {
     local pkg="$1"
     shift
     local flags=("$@")
-    echo -e "  ${BOLD}${BLUE}> Installing $pkg via package manager...${NC}"
+    printfln "  ${BOLD}${BLUE}> Installing $pkg via package manager...${NC}"
     case "$DISTRO" in
         macos)
             local type="--formula"
@@ -69,7 +75,7 @@ install_package() {
             then 
                 if command -v yay >/dev/null 2>&1; 
                 then yay -S --noconfirm "$pkg"
-                else echo -e "${RED}[!] 'yay' is required to install $pkg but is not installed.${NC}"; exit 1; 
+                else printfln "${RED}[!] 'yay' is required to install $pkg but is not installed.${NC}"; exit 1; 
                 fi
             else 
                 sudo pacman -S --noconfirm "$pkg"
@@ -79,7 +85,7 @@ install_package() {
             sudo dnf install -y "$pkg" 
             ;;
         *) 
-            echo -e "${RED}[!] Unsupported distribution for automatic install: $DISTRO ${NC}"; exit 1 
+            printfln "${RED}[!] Unsupported distribution for automatic install: $DISTRO ${NC}"; exit 1 
             ;;
     esac
 }
@@ -125,7 +131,7 @@ is_installed() {
         local target_cmd=$(value_or_default "OVERRIDE_CMD_${safe_pkg}_${DISTRO}" "$target_pkg")
         
         if command -v "$target_cmd" >/dev/null 2>&1; then
-            echo -e "${GREEN}[OK]${NC} $target_pkg is already installed (found command: $target_cmd)."
+            printfln "${GREEN}[OK]${NC} $target_pkg is already installed (found command: $target_cmd)."
             return 0
         else
             return 1
@@ -164,20 +170,20 @@ require() {
     local target_pkg="$(value_or_default "OVERRIDE_PKG_${safe_pkg}_${DISTRO}" "$base_pkg")"
         
     if is_installed "$base_pkg" "${flags[@]}"; then
-        echo -e "${GREEN}[OK]${NC} $target_pkg is already installed (verified via package manager)."
+        printfln "${GREEN}[OK]${NC} $target_pkg is already installed (verified via package manager)."
         return 0
     fi
     
-    echo -e "${BLUE}[INSTALL]${NC} Missing $target_pkg. Installing..."
+    printfln "${BLUE}[INSTALL]${NC} Missing $target_pkg. Installing..."
     
     local custom_installer=$(get_custom_install "$safe_pkg" "$DISTRO")
     local global_custom_installer=$(get_custom_install "$safe_pkg" "all")
     # 3. Execute installation
     if [[ -n "$custom_installer" ]]; then
-        echo -e "${BOLD} > Running distro-specific custom installer...${NC}"
+        printfln "${BOLD} > Running distro-specific custom installer...${NC}"
         eval "$custom_installer"
     elif [[ -n "$global_custom_installer" ]]; then
-        echo -e "${BOLD}  > Running global custom installer...${NC}"
+        printfln "${BOLD}  > Running global custom installer...${NC}"
         eval "$global_custom_installer"
     else
         install_package "$target_pkg" "${flags[@]}"

@@ -38,6 +38,12 @@ else
 	NC=''
 fi
 
+printfln() {
+    local format="$1"
+    shift
+    printf "${format}\n" "$@"
+}
+
 # Get short git commit hash
 get_git_hash() {
 	git rev-parse --short HEAD 2>/dev/null || echo "unknown"
@@ -45,7 +51,7 @@ get_git_hash() {
 
 validate_module_context() {
 	if [ -z "$DOTFILES_DIR" ]; then
-		echo -e "${RED}[!] Error: This script must be called via dot.sh${NC}"
+		printfln "${RED}[!] Error: This script must be called via dot.sh${NC}"
 		exit 1
 	fi
 }
@@ -74,9 +80,9 @@ check_requirements() {
 
 	if [ -f "$req_file" ]; then
 		echo ""
-		echo -e "${BLUE}[i]${NC} Checking system requirements for module..."
+		printfln "${BLUE}[i]${NC} Checking system requirements for module..."
 		if ! sh "$req_file"; then
-			echo -e "${RED}[!] Please fix missing dependencies before proceeding.${NC}"
+			printfln "${RED}[!] Please fix missing dependencies before proceeding.${NC}"
 			exit 1
 		fi
 	fi
@@ -89,11 +95,11 @@ require_mod() {
 	for required_mod in "$@"; do
 		if grep -q "^${required_mod}|installed|" "$STATE_FILE" 2>/dev/null; then
 			# Use GREEN for success
-			echo -e "  -> ${GREEN}[OK]${NC} Module '${BOLD}$required_mod${NC}' is installed."
+			printfln "  -> ${GREEN}[OK]${NC} Module '${BOLD}$required_mod${NC}' is installed."
 		else
 			# Use YELLOW for warnings
-			echo -e "  -> ${YELLOW}[!] Warning:${NC} Recommended module '${BOLD}$required_mod${NC}' is not installed."
-			echo -e "         Consider running: ./dot.sh install $required_mod"
+			printfln "  -> ${YELLOW}[!] Warning:${NC} Recommended module '${BOLD}$required_mod${NC}' is not installed."
+			printfln "         Consider running: ./dot.sh install $required_mod"
 		fi
 	done
 }
@@ -142,7 +148,7 @@ _append_rc_module() {
     local shebang="$5"
 
     if [ -z "$module_name" ] || [ -z "$content" ]; then
-        echo -e "${RED}[!] Error: append function requires module name and content${NC}"
+        printfln "${RED}[!] Error: append function requires module name and content${NC}"
         return 1
     fi
 
@@ -157,7 +163,7 @@ _append_rc_module() {
     if [ ! -f "$rc_file" ]; then
         mkdir -p "$(dirname "$rc_file")"
         touch "$rc_file"
-        echo -e "${BLUE}[i]${NC} Created RC file: $rc_file"
+        printfln "${BLUE}[i]${NC} Created RC file: $rc_file"
     fi
 
     # If the source line is not already present, append it.
@@ -169,7 +175,7 @@ $source_line
 $marker_end
 SHELL
     else
-        echo -e "${YELLOW}[!]${NC} RC Append '$module_name' already configured in $rc_file. Skipping."
+        printfln "${YELLOW}[!]${NC} RC Append '$module_name' already configured in $rc_file. Skipping."
     fi
 
     mkdir -p "$dotsh_dir"
@@ -184,7 +190,7 @@ $marker_end
 SHELL
 
     chmod +x "$module_file"
-    echo -e "${GREEN}[OK]${NC} Appended ${module_name} configuration to $rc_file"
+    printfln "${GREEN}[OK]${NC} Appended ${module_name} configuration to $rc_file"
     return 0
 }
 
