@@ -1,0 +1,53 @@
+;; Name:    karabiner.edn
+;; Desc:    Karabiner configuration for Alex Candido.
+;; Author:  Alex Candido <github:alxcsx>
+
+{:templates
+ {:yabai "/opt/homebrew/bin/yabai %s"
+  :open "open -a %s"}
+ :main
+ [{:des "Alex's Karabiner config"
+   :rules [    ;; Open Launcher (cmd + spacebar)
+           [:!Cspacebar [:open "Tinycast"]]
+           ;; Open Terminal (option + T)
+           [:!Ot [:open "Kitty"]]
+           ;; Open System Settings (option + s+ Z)
+           [:!OSz [:open "\"System Settings\""]]
+
+
+           ;; WINDOW MANAGEMENT
+
+           [:!Fleft_arrow [:yabai "-m window --focus west"]]
+           [:!Fdown_arrow [:yabai "-m window --focus south"]]
+           [:!Fup_arrow [:yabai "-m window --focus north"]]
+           [:!Fright_arrow [:yabai "-m window --focus east"]]
+
+           ;; Move/Swap Windows (Option + Shift + Arrows)
+           [:!SFleft_arrow [:yabai "-m window --swap west"]]
+           [:!SFdown_arrow [:yabai "-m window --swap south"]]
+           [:!SFup_arrow [:yabai "-m window --swap north"]]
+           [:!SFright_arrow [:yabai "-m window --swap east"]]
+
+           ;; Toggle Fullscreen (Super + F)
+           [:!Of [:yabai "-m window --toggle zoom-fullscreen"]]
+
+           ;; Toggle Float / Layout (Super + V or Space equivalent)
+           [:!Ov [:yabai "-m window --toggle float --grid 4:4:1:1:2:2"]]
+
+           ;; WORKSPACES
+
+           ;; Focus Space (Super + 1..6)
+          [:!O1 :!T1]
+          [:!O2 :!T2]
+          [:!O3 :!T3]
+          [:!O4 :!T4]
+          [:!O5 :!T5]
+          [:!O6 :!T6]
+
+           ;; Send Window to Space (Super + Shift + 1..6)
+           [:!SO1 [:yabai "-m window --space 1"]]
+           [:!SO2 [:yabai "-m window --space 2"]]
+           [:!SO3 [:yabai "-m window --space 3"]]
+           [:!SO4 [:yabai "-m window --space 4"]]
+           [:!SO5 [:yabai "-m window --space 5"]]
+           [:!SO6 [:yabai "-m window --space 6"]]]}]}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# name:		jankyborders.bordersrc.sh
+# desc:		Janky Borders config
+# author:	Alex Candido <github:alxcsx>``
+
+ACTIVE_COLOR="0xfffae929"   	# Gruber Yellow 
+INACTIVE_COLOR="0x66181818" 	# Gruber Background
+BACKGROUND_COLOR="0x00000000" # Transparent inner background
+
+options=(
+    active_color=$ACTIVE_COLOR
+    inactive_color=$INACTIVE_COLOR
+    background_color=$BACKGROUND_COLOR
+    style=rounded
+    width=3.0
+    hidpi=on
+    ax_focus=on
+    blacklist=""
+)
+
+borders "${options[@]}" &

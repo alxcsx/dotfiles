@@ -1,0 +1,79 @@
+#!/bin/bash
+# name:		sketchybarrc
+# desc:		Configuration for sketchybar.
+# TODO:   The label alignment isn't great. 
+# TODO:   The click functionalities still need some polishing
+# author:	Alex Candido <github:alxcsx>
+
+CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+# Load the theme colors dynamically
+source "$PLUGIN_DIR/colors.sh"
+
+# Global Bar Settings
+sketchybar --bar height=32 \
+                 color=$BAR_COLOR \
+                 shadow=on \
+                 position=top \
+                 sticky=on \
+                 padding_right=20 \
+                 padding_left=20 \
+                 y_offset=0 \
+                 margin=0 \
+                 corner_radius=0
+
+# Global Item Defaults
+sketchybar --default update_freq=20 \
+                     icon.font="Hack Nerd Font:Regular:16.0" \
+                     icon.color=$ICON_COLOR \
+                     label.font="Hack Nerd Font:Regular:14.0" \
+                     label.color=$LABEL_COLOR \
+                     padding_left=5 \
+                     padding_right=5 \
+                     padding_top=5 \
+                     padding_bottom=5 \
+                     background.color=$ITEM_BG_COLOR \
+                     background.corner_radius=5 \
+                     background.height=24
+
+
+# LEFT: Workspaces
+SPACE_ICONS=("Web" "Dev" "Term" "Chat" "Media" "Misc")
+
+for i in "${!SPACE_ICONS[@]}"; do
+  sid=$(($i+1))
+  sketchybar --add space space.$sid left \
+             --set space.$sid space=$sid \
+                              icon="${SPACE_ICONS[i]}" \
+                              icon.padding_left=10 \
+                              icon.padding_right=10 \
+                              label.drawing=off \
+                              background.padding_left=2 \
+                              background.padding_right=2 \
+                              script="$PLUGIN_DIR/space.sh" \
+                              click_script="$PLUGIN_DIR/space.sh click $sid"
+
+done
+
+# CENTER: Date / Time
+sketchybar --add item clock center \
+           --set clock update_freq=5 \
+                       icon="󰃰" \
+                       script="$PLUGIN_DIR/clock.sh"\
+                       click_script="open 'itsycal://date/now'"\
+           --subscribe clock mouse.entered mouse.exited
+
+# RIGHT: WiFi, Battery
+sketchybar --add item wifi right \
+           --set wifi script="$PLUGIN_DIR/wifi.sh" \
+                      update_freq=10\
+                      click_script="open 'x-apple.systempreferences:com.apple.wifi-settings-extension'"\
+           --subscribe wifi mouse.entered mouse.exited
+
+sketchybar --add item battery right \
+           --set battery script="$PLUGIN_DIR/battery.sh" \
+                         update_freq=60\
+           --subscribe mouse.entered mouse.exited
+
+sketchybar --update

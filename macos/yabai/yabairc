@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# name:		yabairc
+# desc:		Configuration for yabai window manager.
+# TODO: 
+# author:	Alex Candido <github:alxcsx>
+
+yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
+sudo yabai --load-sa
+
+# -- General Layout
+yabai -m config layout bsp
+yabai -m config top_padding    5
+yabai -m config bottom_padding 5
+yabai -m config left_padding   5
+yabai -m config right_padding  5
+yabai -m config window_gap     5
+yabai -m config auto_balance off
+yabai -m config split_ratio 0.5
+yabai -m config split_type auto 
+# -- Mouse
+yabai -m config mouse_modifier alt
+yabai -m config mouse_action1 move
+yabai -m config mouse_action2 resize
+yabai -m config focus_follows_mouse on
+yabai -m config mouse_follows_focus off
+
+# -- Visual stuff
+yabai -m config window_shadow float
+yabai -m config skip_window_focus_animation off
+
+# hack to hide the menubar
+# yabai -m config menubar_opacity 0.0
+
+## -- Animation
+yabai -m config window_animation_duration 0.0
+yabai -m config window_animation_frame_rate 120
+
+## -- Rules		
+yabai -m rule --add app="^System Settings$" manage=off
+## -- Top BAR Padding
+yabai -m config external_bar all:34:0
