@@ -69,6 +69,12 @@ if command -v mise >/dev/null 2>&1; then
 # OTHERS
 	mise_install rust latest
 	mise_install just latest
+# LUA
+  mise_install lua latest
+  mise_install lua-language-server latest
+# SHELL
+  mise_install shellcheck latest
+  mise_install shfmt latest
 
 	echo -e "  -> ${GREEN}[OK]${NC} Languages successfully installed and set as global defaults."
 else

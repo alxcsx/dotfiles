@@ -27,7 +27,7 @@ require "pkgconf"
 require "xh"
 
 # --- Language Tools
-require "shellcheck"
+require "bash-language-server"
 
 # --- Erlang build dependencies (wxwidgets, etc.) ---
 override_pkg "wxwidgets" "ubuntu" "libwxgtk3.0-gtk3-dev"

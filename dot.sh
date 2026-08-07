@@ -5,7 +5,6 @@
 
 # startup
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-OS="$(uname -s)"
 COMMAND="$1"
 
 source "$DOTFILES_DIR/.utils/common.sh"
@@ -72,7 +71,7 @@ for module in $MODULES; do
         # Execute the module script with DOTFILES_DIR in environment
         export DOTFILES_DIR
         sh "$SCRIPT_PATH"
-        
+
         if [ $? -eq 0 ]; then # Check if the script succeeded before updating state
             if [ "$COMMAND" = "install" ]; then
                 update_state "$module" "installed" "$(get_git_hash)"
