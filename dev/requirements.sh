@@ -19,6 +19,8 @@ require "mise"
 require "podman"
 require "podman-compose"
 require "direnv"
+require "fd"
+require "ripgrep"
 
 require "openssl"
 require "pkgconf"
@@ -43,5 +45,5 @@ require "unixodbc"
 
 # --- OS-Specific Elixir/Phoenix Watcher
 if [[ "$OS" == "linux" ]]; then
-    require "inotify-tools"
+  require "inotify-tools"
 fi
