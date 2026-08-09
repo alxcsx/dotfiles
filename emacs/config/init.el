@@ -30,6 +30,9 @@
 (require 'lang/lua)
 (require 'lang/sh)
 (require 'lang/elixir)
+(require 'lang/godot)
+(require 'lang/js-ts)
+(require 'lang/csharp)
 
 ;; Extra:
 (require 'extra/terminal)
