@@ -20,6 +20,7 @@
 ;; Color Scheme
 (use-package gruber-darker-theme
   :config
+  (mapc #'disable-theme custom-enabled-themes)
   (load-theme 'gruber-darker t))
 
 ;; Layout
@@ -41,9 +42,15 @@
   :custom
   (nerd-icons-font-family "Symbols Nerd Font Mono"))
 
+(use-package nerd-icons-completion
+  :after marginalia
+  :config
+  (nerd-icons-completion-mode 1)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+
 ;; Typography
-(set-face-attribute 'default nil :family "Roboto Mono" :height 140 :weight 'light)
-(set-face-attribute 'bold nil :family "Roboto Mono" :weight 'regular)
+(set-face-attribute 'default nil :family "JetBrains Mono" :height 140 :weight 'regular)
+(set-face-attribute 'bold nil :family "JetBrains Mono" :weight 'medium)
 (set-face-attribute 'italic nil :family "Victor Mono" :weight 'semilight :slant 'italic)
 
 
@@ -104,7 +111,6 @@
     " "
     (:eval (when (buffer-narrowed-p)
              (propertize " NARROWED " 'face '(:inherit warning :inverse-video t :weight bold))))
-
     ;; Buffer name
     (:eval (propertize (buffer-name)
                        'face (if (mode-line-window-selected-p) 'bold 'shadow)
@@ -112,17 +118,14 @@
                        'mouse-face 'highlight
                        'local-map my-ui-buffer-name-map))
     "  "
-
     ;; Read-Only / Modified Status
     (:eval (cond (buffer-read-only (propertize "RO" 'face 'my-ui-faded-face))
                  ((buffer-modified-p) (propertize "**" 'face 'warning))
                  (t (propertize "RW" 'face 'shadow))))
     "  "
-
     ;; Major Mode (Language) using pill face
     (:eval (propertize (format " %s " (format-mode-line mode-name))
                        'face 'my-ui-pill-face))
-
     ;; Line/Col numbers OR Selection Stats
     "   "
     (:eval (if (use-region-p)
@@ -169,6 +172,57 @@
 
 (setq-default display-line-numbers-type t)
 (setq-default display-line-numbers-width 3)
+
+;; Confirmation Prompt
+
+(setq use-dialog-box t)
+(setq visible-bell t)
+(setopt use-short-answers t)
+
+(set-face-attribute 'minibuffer-prompt nil
+                    :weight 'bold
+                    :height 1.2)
+
+;; Mouse Focus
+
+(setq mouse-autoselect-window -0.1)
+(setq focus-follows-mouse t)
+
+
+;; Frame Control
+
+(defun my/move-to-clean-frame ()
+  "Move the current window into a new, dedicated, mode-line-free frame."
+  (interactive)
+  (let ((buf (current-buffer))
+        (orig-win (selected-window)))
+    (let* ((new-frame (make-frame '((menu-bar-lines . 0)
+                                    (tool-bar-lines . 0)
+                                    (vertical-scroll-bars . nil))))
+           (new-win (frame-root-window new-frame)))
+      (set-window-buffer new-win buf)
+      (set-window-dedicated-p new-win t)
+      (select-frame-set-input-focus new-frame)
+      (when (window-deletable-p orig-win)
+        (delete-window orig-win)))))
+
+(global-set-key (kbd "C-c f") #'my/move-to-clean-frame)
+
+(defun my/toggle-window-split ()
+  "Toggle between a horizontal and vertical split for 2 windows."
+  (interactive)
+  (if (not (= (count-windows) 2))
+      (message "This command only works when there are exactly 2 windows on screen.")
+    (let ((this-buf (window-buffer))
+          (other-buf (window-buffer (next-window)))
+          (stacked (= (window-width) (frame-width))))
+      (delete-other-windows)
+      (if stacked
+          (split-window-right)   ; Pivot to side-by-side
+        (split-window-below))    ; Pivot back to top-and-bottom
+      (set-window-buffer (next-window) other-buf))))
+
+(global-set-key (kbd "C-c w") #'my/toggle-window-split)
 
 (provide 'init/ui)
 ;;; ui.el ends here

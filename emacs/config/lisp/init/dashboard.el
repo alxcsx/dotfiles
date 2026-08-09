@@ -13,7 +13,8 @@
         dashboard-display-icons-p t
         dashboard-set-file-icons t
         dashboard-set-heading-icons t
-        dashboard-projects-backend 'project-el)
+        dashboard-projects-backend 'project-el
+        dashboard-projects-switch-function 'dired)
   :config
   (add-hook 'elpaca-after-init-hook #'dashboard-insert-startupify-lists)
   (add-hook 'elpaca-after-init-hook #'dashboard-initialize)

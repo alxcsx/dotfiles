@@ -12,7 +12,7 @@
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 
-                                        ; put native compilation cache in a subdirectory of the config directory.
+;; put native compilation cache in a subdirectory of the config directory.
 (when (and (fboundp 'startup-redirect-eln-cache)
            (fboundp 'native-comp-available-p)
            (native-comp-available-p))
@@ -24,8 +24,10 @@
 
 ;; Theme Colors, default while the theme is being loaded
 (add-to-list 'default-frame-alist '(background-color . "#181818"))
-(add-to-list 'initial-frame-alist '(background-color . "#181818"))
-(setq-default mode-line-format nil) ;; Hide the modeline because it was flashing
+(add-to-list 'default-frame-alist '(foreground-color . "#ffffff"))
+(load-theme 'modus-vivendi t)
+
+(setq-default mode-line-format nil) ;;Hide the modeline because it was flashing
 
 
 (provide 'early-init)

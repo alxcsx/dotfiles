@@ -10,8 +10,9 @@
 (use-package vertico
   :init
   (vertico-mode 1)
+  (vertico-mouse-mode 1)
   :custom
-  (vertico-count 10)
+  (vertico-count 12)
   (vertico-resize nil)
   (vertico-cycle t))
 
@@ -32,14 +33,34 @@
   :bind
   (("C-s" . consult-line)
    ("C-x b" . consult-buffer)
+   ("C-x C-b" . consult-buffer)
+   ("C-c s" . consult-ripgrep)
+   ("C-x p b" . consult-project-buffer)
    ("C-x C-r" . consult-recent-file)
    ("M-g g" . consult-goto-line) ; jump to line w/ preview
    ("M-y" . consult-yank-pop)) ; kill-ring (clipboard) history chooser
   :custom
   (consult-preview-key "<right>")
+  (consult-narrow-key "<")
   :init
   ;; Hide M-x commands that don't apply to the current mode (so we don't clutter the search)
-  (setq read-extended-command-predicate #'command-completion-default-include-p))
+  (setq read-extended-command-predicate #'command-completion-default-include-p)
+  :config
+  (defvar my-modified-buffers-source
+    `(:name     "Modified Buffers"
+                :narrow   ?m
+                :category buffer
+                :face     font-lock-warning-face  ; The color applied to the text
+                :items    ,(lambda ()
+                             (consult--buffer-query
+                              :sort 'visibility
+                              :as #'buffer-name
+                              :predicate (lambda (buf)
+                                           (and (buffer-modified-p buf)
+                                                (buffer-file-name buf)))))))
+
+  ;; Add the custom source to Consult's buffer list
+  (add-to-list 'consult-buffer-sources 'my-modified-buffers-source))
 
 (use-package corfu
   :init

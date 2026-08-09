@@ -26,5 +26,11 @@
   :custom
   (recentf-max-saved-items 100))
 
+(use-package trust-manager
+  :ensure t
+  :config
+  (trust-manager-mode 1))
+
+
 (provide 'init/core)
 ;;; core.el ends here

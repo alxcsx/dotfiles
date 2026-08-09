@@ -29,3 +29,4 @@ tree-sitter/
 forge-database.sqlite
 var/
 etc/
+custom.el

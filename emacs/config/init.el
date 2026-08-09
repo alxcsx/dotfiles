@@ -2,12 +2,16 @@
 ;;; Commentary:
 ;;; Code:
 
-(eval-and-compile ;; to force the linter to load these directories.
+(eval-and-compile ;; force load
   (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-  (add-to-list 'custom-theme-load-path (expand-file-name "themes" user-emacs-directory)))
+  (add-to-list 'custom-theme-load-path (expand-file-name "themes" user-emacs-directory))
+  (setq custom-file (expand-file-name "custom.el" user-emacs-directory)))
 
 (setq debug-on-error t)
 (add-to-list 'warning-suppress-types '(face))
+
+(when (file-exists-p custom-file)
+  (load custom-file nil t))
 
 ;; Core:
 (require 'init/elpaca)
@@ -18,11 +22,14 @@
 (require 'init/tools)
 (require 'init/dashboard)
 
-;; Language Specifics:
+;; Language:
 (require 'lang/lisp)
 (require 'lang/lua)
 (require 'lang/sh)
 (require 'lang/elixir)
+
+;; Extra:
+(require 'extra/terminal)
 
 (setq debug-on-error nil)
 ;;; init.el ends here
