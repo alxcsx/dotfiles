@@ -64,7 +64,7 @@ install_package() {
   macos)
     local type="--formula"
     has_flag "--cask" "${flags[@]}" && type="--cask"
-    brew install $type "$pkg"
+    brew install $type $pkg
     ;;
   ubuntu | debian)
     sudo apt-get update -qq &&

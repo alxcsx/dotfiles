@@ -7,7 +7,13 @@ set -e
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../.utils/packages.sh"
 
 # Editor
-override_pkg "emacs" "macos" "d12frosted/emacs-plus/emacs-plus-app"
+override_pkg "emacs" "macos" "emacs-plus --with-dbus --with-mailutils --with-xwidgets"
+if [[ "$DISTRO" == "macos" ]]; then
+	printfln "${GREEN}[*]${NC} Tapping emacs-plus for macOS..."
+	brew tap d12frosted/emacs-plus
+	brew trust d12frosted/emacs-plus
+fi
+
 require "emacs"
 
 # GPG Integration

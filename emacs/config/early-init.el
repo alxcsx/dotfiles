@@ -29,6 +29,8 @@
 
 (setq-default mode-line-format nil) ;;Hide the modeline because it was flashing
 
+(when (eq system-type 'darwin)
+  (require 'early-init-macos (expand-file-name "lisp/early-init-macos.el" user-emacs-directory)))
 
 (provide 'early-init)
 ;;; early-init.el ends here

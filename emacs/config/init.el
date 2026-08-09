@@ -13,6 +13,9 @@
 (when (file-exists-p custom-file)
   (load custom-file nil t))
 
+(when (eq system-type 'darwin)
+  (require 'init-macos) )
+
 ;; Core:
 (require 'init/elpaca)
 (require 'init/core)
