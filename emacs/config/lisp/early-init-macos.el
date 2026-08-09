@@ -2,6 +2,8 @@
 ;;; Commentary:
 ;;; Code:
 
+(setq frame-inhibit-implied-resize t)
+(push '(font . "JetBrains Mono-14") default-frame-alist)
 (push '(ns-transparent-titlebar . t) default-frame-alist)
 (push '(ns-appearance . dark) default-frame-alist)
 

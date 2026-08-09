@@ -40,14 +40,11 @@ done
 
 printfln "${GREEN}[OK]${NC} Symlinked Emacs configuration to $EMACS_CONFIG_DIR"
 
-# 5. Start the Emacs Daemon
-printfln "${BLUE}[i]${NC} Starting the Emacs Daemon..."
-
+# 5. Allowing emacs through quarantine
 if [ "$(uname)" = "Darwin" ]; then
-  brew services start emacs-plus
-else
-  # Arch Linux: Enable and start the user-level systemd service
-  systemctl --user enable --now emacs
+  printfln "${BLUE}[i]${NC} Bypassing Gatekeeper..."
+  sudo xattr -r -d com.apple.quarantine /opt/homebrew/opt/emacs-plus@30/Emacs.app 2>/dev/null || true
+  printfln "For better results, also add it as dev tool"
 fi
 printfln "${GREEN}[OK]${NC} Emacs Daemon is running"
 

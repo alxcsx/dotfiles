@@ -2,6 +2,13 @@
 ;;; Commentary:
 ;;; Code:
 
+;; Load Environment Variables
+(use-package exec-path-from-shell
+  :if (memq window-system '(mac ns x pgtk))
+  :config
+  (exec-path-from-shell-initialize))
+
+
 (use-package no-littering
   :config
   (no-littering-theme-backups)

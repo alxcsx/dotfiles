@@ -3,12 +3,6 @@
 ;;; Code:
 
 
-;;; Load Environment Variables
-(use-package exec-path-from-shell
-  :if (memq window-system '(mac ns x pgtk))
-  :config
-  (exec-path-from-shell-initialize))
-
 ;;; Keybinding Discoverability
 (if (fboundp 'which-key-mode)
     (which-key-mode 1)
