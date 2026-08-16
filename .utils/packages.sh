@@ -2,7 +2,7 @@
 # name:		packages.sh
 # desc:		Shared DSL for managing package installation
 # author:	Alex Candido <github:alxcsx>
-set -e
+
 # META
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 DISTRO=""

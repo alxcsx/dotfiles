@@ -2,35 +2,32 @@
 # name:		macos.requirements.sh
 # desc:		requirements for macos module
 # author:	Alex Candido <github:alxcsx>
-set -e
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../.utils/packages.sh"
 
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "Not on macOS. Skipping macos requirements."
-    exit 0
+if false; then
+  source "../.utils/common_v2.sh"
+  source "../.utils/packages_v2.sh"
 fi
 
-echo "Installing macOS specific dependencies..."
+assert [ "$OS" = "darwin" ] -- \
+  "Not on MACOS" \
+  "This Module Only Works on Darwin Machines"
 
-# --- Xcode Command Line Tools ---
-xcode-select -p >/dev/null 2>&1 || sudo xcode-select --install
+step "Install Xcode Command Line Tools" \
+  xcode-select -p >/dev/null 2>&1 || sudo xcode-select --install
 
 # --- Ricing ---
-require FelixKratz/formulae/sketchybar
-require FelixKratz/formulae/borders
-require asmvik/formulae/yabai
-require fastfetch
-# --- Shell tools
-require karabiner-elements --cask 
-require yqrashawn/goku/goku
-require abue-ammar/tinycast/tinycast --cask  # Launcher
-# --- APPS
-require zen-browser --cask
-require iina        --cask  # Media Player
-require itsycal     --cask	# Calendar
-require pearcleaner --cask
-# --- FONTS
-require font-fira-code-nerd-font --cask
-require font-hack-nerd-font --cask
-require font-jetbrains-mono-nerd-font --cask
-require font-roboto-mono-nerd-font --cask
+require_pkgs \
+  FelixKratz/formulae/sketchybar \
+  FelixKratz/formulae/borders \
+  asmvik/formulae/yabai \
+  fastfetch \
+  yqrashawn/goku/goku \
+  cask:karabiner-elements \
+  cask:abue-ammar/tinycast/tinycast \
+  cask:zen-browser \
+  cask:iina \
+  cask:pearcleaner \
+  cask:font-fira-code-nerd-font \
+  cask:font-hack-nerd-font \
+  cask:font-jetbrains-mono-nerd-font \
+  cask:font-roboto-mono-nerd-font
