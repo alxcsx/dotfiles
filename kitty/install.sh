@@ -4,8 +4,7 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../.utils/common_v2.sh"
-  source "../.utils/common.sh"
+  source "../dot.sh"
 fi
 
 KITTY_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/kitty"

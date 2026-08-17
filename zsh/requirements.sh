@@ -4,7 +4,7 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../.utils/packages_v2.sh"
+  source "../dot.sh"
 fi
 
 require_pkgs \

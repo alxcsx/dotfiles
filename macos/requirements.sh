@@ -4,8 +4,7 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../.utils/common_v2.sh"
-  source "../.utils/packages_v2.sh"
+  source "../dot.sh"
 fi
 
 assert [ "$OS" = "darwin" ] -- \

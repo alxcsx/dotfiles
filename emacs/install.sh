@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
 if false; then
-  source "../.utils/common_v2.sh"
-  source "../.utils/common.sh"
+  source "../dot.sh"
 fi
 
 EMACS_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/emacs"
@@ -20,6 +19,7 @@ step --run-if '[ -d "$HOME/.emacs.d" ] && [ ! -L "$HOME/.emacs.d" ]' -b \
 
 link_dir_content -b "$MODULE_DIR/config" "$EMACS_CONFIG_DIR"
 
-step --run-if '$OS = "Darwin"' \
-  "Allow emacs through MacOs quarantine"
-sudo xattr -r -d com.apple.quarantine /opt/homebrew/opt/emacs-plus@30/Emacs.app 2>/dev/null || true
+EMACS_APP="$(brew --prefix 2>/dev/null)/opt/emacs-plus/Emacs.app"
+step --run-if '[[ "$OS" == "darwin" ]] && [ -d "'"$EMACS_APP"'" ] && xattr -p com.apple.quarantine "'"$EMACS_APP"'" >/dev/null 2>&1' \
+  "Allow emacs through MacOs quarantine" \
+sudo xattr -r -d com.apple.quarantine "$EMACS_APP"

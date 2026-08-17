@@ -4,8 +4,7 @@
 
 # --- ShellCheck Context
 if false; then
-  source "../.utils/common.sh"
-  source "../.utils/common_v2.sh"
+  source "../dot.sh"
 fi
 # -----------------------------------------------
 

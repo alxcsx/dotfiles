@@ -345,3 +345,166 @@ link_dir_content() {
     done
   fi
 }
+
+## MACOS SPECIFIC
+macos_defaults() {
+  local domain="$1"
+  shift
+
+  assert [ -n "$domain" ] -- "macos_defaults requires a domain as the first argument"
+
+  while [ $# -ge 3 ]; do
+    local key="$1"
+    local type="$2"
+    local val="$3"
+    shift 3
+
+    case "$DOT_ACTION" in
+    revert)
+      step -v "Restore macOS default: $domain -> $key" defaults delete "$domain" "$key" 2>/dev/null || true
+      ;;
+    install)
+      local current_val
+      current_val=$(defaults read "$domain" "$key" 2>/dev/null || echo "__UNSET__")
+
+      if [ "$DOT_DRY_RUN" == "1" ]; then
+        printfln "    ${YELLOW}[DRY-RUN]${NC} defaults write \"$domain\" \"$key\" -$type \"$val\" (Current: $current_val)"
+      else
+        step --skip-if '[ "$current_val" == "$val" ]' \
+          "Set macOS default: $domain -> $key ($val)" \
+          defaults write "$domain" "$key" "-$type" "$val"
+      fi
+      ;;
+    *)
+
+      ;;
+    esac
+  done
+}
+
+## RC (from common_v1)
+
+is_mod_installed() {
+  local target_mod="$1"
+
+  if grep -q "^${target_mod}|installed|" "$STATE_FILE" 2>/dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Detect the target RC file based on current shell
+get_rc_file() {
+  local shell_name=""
+  local rc_file=""
+
+  shell_name="$(basename "$SHELL")"
+
+  case "$shell_name" in
+  bash)
+    if [[ "$OS" == "macos" ]]; then
+      rc_file="$HOME/.bash_profile"
+    else
+      rc_file="$HOME/.bashrc"
+    fi
+    ;;
+  zsh)
+    if is_mod_installed "zsh"; then
+      rc_file="${ZDOTDIR:-$HOME/.config/zsh}/.zshrc.local"
+    else
+      rc_file="${ZDOTDIR:-$HOME}/.zshrc"
+    fi
+    ;;
+  fish)
+    rc_file="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
+    ;;
+  *)
+    rc_file="$HOME/.bashrc"
+    ;;
+  esac
+  echo "$rc_file"
+}
+
+_append_rc_module() {
+  local module_name="$1"
+  local content="$2"
+  local rc_file="$3"
+  local ext="$4"
+  local shebang="$5"
+
+  if [ -z "$module_name" ] || [ -z "$content" ]; then
+    printfln "${RED}[!] Error: append function requires module name and content${NC}"
+    return 1
+  fi
+
+  local dotsh_dir="$(dirname "$rc_file")/.dotsh"
+  local module_file="$dotsh_dir/${module_name}.${ext}"
+
+  local source_line="source \"$module_file\""
+  local marker="# >>> dotfiles ${module_name} module >>>"
+  local marker_end="# <<< dotfiles ${module_name} module <<<"
+
+  # Create parent directories and RC file if they don't exist
+  if [ ! -f "$rc_file" ]; then
+    mkdir -p "$(dirname "$rc_file")"
+    touch "$rc_file"
+    printfln "${BLUE}[i]${NC} Created RC file: $rc_file"
+  fi
+
+  # If the source line is not already present, append it.
+  if ! grep -q "$marker" "$rc_file"; then
+    \cat >>"$rc_file" <<SHELL
+$marker
+# Injected by dotfiles '${module_name}' module
+$source_line
+$marker_end
+SHELL
+  else
+    printfln "${YELLOW}[!]${NC} RC Append '$module_name' already configured in $rc_file. Skipping."
+  fi
+
+  mkdir -p "$dotsh_dir"
+
+  # Overwrite the module file
+  \cat >"$module_file" <<-SHELL
+		#!/usr/bin/env $shebang
+		$marker
+		# Injected by dotfiles '${module_name}' module
+		$content
+		$marker_end
+	SHELL
+
+  chmod +x "$module_file"
+  printfln "${GREEN}[OK]${NC} Appended ${module_name} configuration to $rc_file"
+  return 0
+}
+
+append_rc_step() {
+  local message=""
+  if [ "$1" == "-m" ]; then
+    message="$2"
+    shift 2
+  fi
+
+  [ -z "$message" ] && message="Appending Module $1 to RC file"
+  step "$message" append_rc "$@"
+}
+
+# --- Bash/Zsh Wrapper ---
+append_rc() {
+  local shell_name="$(basename "$SHELL")"
+  [ "$shell_name" = "fish" ] && return 0
+
+  local rc_file="$(get_rc_file)"
+  _append_rc_module "$1" "$2" "$rc_file" "sh" "bash"
+}
+
+# --- Fish Wrapper ---
+append_fishrc() {
+  local shell_name="$(basename "$SHELL")"
+  [ "$shell_name" != "fish" ] && return 0
+
+  local rc_file="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
+  _append_rc_module "$1" "$2" "$rc_file" "fish" "fish"
+}

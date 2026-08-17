@@ -4,128 +4,110 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../.utils/common.sh"
-  source "../.utils/common_v2.sh"
+  source "../dot.sh"
 fi
 
 assert [ "$OS" = "darwin" ] -- \
   "Not on MACOS" \
   "This Module Only Works on Darwin Machines"
 
+
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
-
 # - Core Defaults
-printfln "${BLUE}[i]${NC} Applying macOS system defaults..."
 
-# Auto start
-defaults write com.apple.loginwindow LoginwindowLaunchesRelaunchApps -bool false
-defaults write com.apple.loginwindow TALLogoutSavesState -bool false
-## - Dock
-defaults write com.apple.dock autohide-time-modifier -float 1
-defaults write com.apple.dock autohide -bool true
-defaults write com.apple.dock autohide-delay -float 1000
-defaults write com.apple.dock no-bouncing -bool true
-defaults write com.apple.dock tilesize -int 16
-defaults write com.apple.dock static-only -bool true
-defaults write com.apple.dock show-recents -bool false
-defaults write com.apple.dock showhidden -bool true
-## - Animation
-defaults write com.apple.dock expose-animation-duration -float 0
-defaults write com.apple.dock workspaces-swoosh-animation-off -bool true
-defaults write com.apple.finder DisableAllAnimations -bool true
-## - Topbar
-defaults write NSGlobalDomain _HIHideMenuBar -bool true
-## - Finder
-defaults write com.apple.finder AppleShowAllFiles -bool true
-defaults write NSGlobalDomain AppleShowAllExtensions -bool true
-defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
-defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
-defaults write com.apple.Terminal StringEncodings -array 4
-## - Workspaces
-defaults write com.apple.dock mru-spaces -bool false
-defaults write com.apple.dock workspaces-auto-swoosh -bool false
-defaults write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
-## - Desktop
-defaults write com.apple.finder CreateDesktop -bool false
-defaults write com.apple.WindowManager StandardHideWidgets -bool true
-defaults write com.apple.WindowManager StageManagerHideWidgets -bool true
+macos_defaults "com.apple.loginwindow" \
+  "LoginwindowLaunchesRelaunchApps" "bool" "false" \
+  "TALLogoutSavesState"             "bool" "false"
 
-CURRENT_MUTE_STATE=$(nvram StartupMute 2>/dev/null | awk '{print $2}')
-if [ ! "$CURRENT_MUTE_STATE" = "%01" ]; then
-  printfln "${BLUE}[i]${NC} Muting startup sound..."
+macos_defaults "com.apple.dock" \
+  "autohide-time-modifier"          "float" "1" \
+  "autohide"                        "bool"  "true" \
+  "autohide-delay"                  "float" "1000" \
+  "no-bouncing"                     "bool"  "true" \
+  "tilesize"                        "int"   "16" \
+  "static-only"                     "bool"  "true" \
+  "show-recents"                    "bool"  "false" \
+  "showhidden"                      "bool"  "true" \
+  "expose-animation-duration"       "float" "0" \
+  "workspaces-swoosh-animation-off" "bool"  "true" \
+  "mru-spaces"                      "bool"  "false" \
+  "workspaces-auto-swoosh"          "bool"  "false"
+
+macos_defaults "com.apple.finder" \
+  "DisableAllAnimations"            "bool"  "true" \
+  "AppleShowAllFiles"               "bool"  "true" \
+  "CreateDesktop"                   "bool"  "false"
+
+macos_defaults "NSGlobalDomain" \
+  "_HIHideMenuBar"                  "bool"  "true" \
+  "AppleShowAllExtensions"          "bool"  "true" \
+  "NSAutomaticWindowAnimationsEnabled" "bool" "false"
+
+macos_defaults "com.apple.desktopservices" \
+  "DSDontWriteNetworkStores"        "bool"  "true"
+
+macos_defaults "com.apple.Terminal" \
+  "StringEncodings"                 "array" "4"
+
+macos_defaults "com.apple.WindowManager" \
+  "EnableStandardClickToShowDesktop" "bool" "false" \
+  "StandardHideWidgets"              "bool" "true" \
+  "StageManagerHideWidgets"          "bool" "true"
+
+macos_defaults "com.mowglii.ItsycalApp" \
+  "ShowEventPopoverOnHover"          "bool" "true" \
+  "DoNotDrawOutlineAroundCurrentMonth" "bool" "true"
+
+macos_defaults "com.colliderli.iina" \
+  "AppleMenuBarVisibleInFullscreen" "bool"  "false" \
+  "iinaEnablePluginSystem"          "bool"  "true"
+
+step "Restart affected macOS system services" bash -c 'killall cfprefsd Finder Dock WindowManager SystemUIServer Itsycal 2>/dev/null || true'
+
+step --run-if '[ "$(nvram StartupMute 2>/dev/null | awk "{print \$2}")" != "%01" ]' -b \
+  "Mute macOS Startup Sound" \
   sudo nvram StartupMute=%01
-fi
 
-# Third Party Apps
-## - Itsycal
-defaults write com.mowglii.ItsycalApp ShowEventPopoverOnHover -bool true
-defaults write com.mowglii.ItsycalApp DoNotDrawOutlineAroundCurrentMonth -bool true
-## - IINA
-defaults write com.colliderli.iina AppleMenuBarVisibleInFullscreen -bool false
-defaults write com.colliderli.iina iinaEnablePluginSystem -bool true
+step "Setup Config Directories" \
+  mkdir -p "$CONFIG_DIR/sketchybar" "$CONFIG_DIR/borders" "$CONFIG_DIR/yabai" "$CONFIG_DIR/karabiner"
 
-killall cfprefsd
-killall Finder
-killall Dock
-killall WindowManager
-killall SystemUIServer
-killall Itsycal
-# - Ricing
-## - Borders and Top bar
+link_dir_content "$MODULE_DIR/sketchybar/plugins" "$CONFIG_DIR/sketchybar/plugins"
+link_file "$MODULE_DIR/sketchybar/sketchybarrc" "$CONFIG_DIR/sketchybar/sketchybarrc"
+link_file "$MODULE_DIR/borders/bordersrc" "$CONFIG_DIR/borders/bordersrc"
 
-printfln "${BLUE}[i]${NC} Setting up XDG config directories..."
-mkdir -p "$CONFIG_DIR/sketchybar"
-mkdir -p "$CONFIG_DIR/borders"
+step "Make Scripts Executable" \
+     chmod +x "$CONFIG_DIR/sketchybar/sketchybarrc"\
+     "$CONFIG_DIR/borders/bordersrc"\
+     "$CONFIG_DIR/sketchybar/plugins/"*.sh
 
-ln -sfn "$MODULE_DIR/sketchybar/plugins" "$CONFIG_DIR/sketchybar/plugins"
-ln -sf "$MODULE_DIR/sketchybar/sketchybarrc" "$CONFIG_DIR/sketchybar/sketchybarrc"
-ln -sf "$MODULE_DIR/borders/bordersrc" "$CONFIG_DIR/borders/bordersrc"
 
-chmod +x "$CONFIG_DIR/sketchybar/sketchybarrc"
-chmod +x "$CONFIG_DIR/borders/bordersrc"
-chmod +x "$MODULE_DIR/sketchybar/plugins/"*.sh
-
-printfln "${BLUE}[i]${NC} Starting visual presentation services..."
-
-brew services start sketchybar
-brew services start borders
+step "Start Visual Presentation Services" bash -c '
+  brew services restart sketchybar
+  brew services restart borders
+'
 
 ## - Yabai
-printfln "${BLUE}[i]${NC} Configuring Yabai..."
-### - Permissions
 YABAI_PATH="$(brew --prefix)/bin/yabai"
 SUDOERS_FILE="/private/etc/sudoers.d/yabai"
 HASH_CACHE_FILE="$CONFIG_DIR/yabai/last_sa_hash"
-CURRENT_HASH="$(shasum -a 256 "$YABAI_PATH" | awk '{print $1}')"
+CURRENT_HASH="$(shasum -a 256 "$YABAI_PATH" 2>/dev/null | awk '{print $1}')"
 
-if [ -f "$HASH_CACHE_FILE" ] && [ "$(cat "$HASH_CACHE_FILE")" = "$CURRENT_HASH" ]; then
-  printfln "${GREEN}[>]${NC} Yabai sudoers hash is already up to date. (Skipping sudo)"
-else
-  printfln "${YELLOW}[>] Yabai hash changed or missing. Updating sudoers...${NC}"
+step --run-if '[ ! -f "'"$HASH_CACHE_FILE"'" ] || [ "$(cat "'"$HASH_CACHE_FILE"'")" != "'"$CURRENT_HASH"'" ]' -b \
+  "Configure Yabai Sudoers & Scripting Addition" bash -c '
+    YABAI_LINE="$(whoami) ALL=(root) NOPASSWD: sha256:'"$CURRENT_HASH"' '"$YABAI_PATH"' --load-sa"
+    echo "$YABAI_LINE" | sudo tee "'"$SUDOERS_FILE"'" >/dev/null
+    sudo chmod 440 "'"$SUDOERS_FILE"'"
+    echo "'"$CURRENT_HASH"'" > "'"$HASH_CACHE_FILE"'"
+'
 
-  YABAI_SUDOERS_LINE="$(whoami) ALL=(root) NOPASSWD: sha256:${CURRENT_HASH} ${YABAI_PATH} --load-sa"
+link_file "$MODULE_DIR/yabai/yabairc" "$CONFIG_DIR/yabai/yabairc"
 
-  printfln "$YABAI_SUDOERS_LINE" | sudo tee "$SUDOERS_FILE" >/dev/null
-  sudo chmod 440 "$SUDOERS_FILE"
-
-  # Save the new hash to our local cache so it doesn't prompt next time
-  mkdir -p "$(dirname "$HASH_CACHE_FILE")"
-  printfln "$CURRENT_HASH" >"$HASH_CACHE_FILE"
-fi
-
-### - config
-YABAI_CONFIG_DIR="$CONFIG_DIR/yabai"
-mkdir -p "$YABAI_CONFIG_DIR"
-ln -sf "$MODULE_DIR/yabai/yabairc" "$YABAI_CONFIG_DIR/yabairc"
-
-yabai --start-service
+step "Start Yabai Service" \
+  yabai --start-service
 
 ## - Karabiner
-mkdir -p "$CONFIG_DIR/karabiner"
-ln -sf "$MODULE_DIR/karabiner/karabiner.edn" "$CONFIG_DIR/karabiner/karabiner.edn"
-
-export GOKU_EDN_CONFIG_FILE="$CONFIG_DIR/karabiner/karabiner.edn"
-goku
+link_file "$MODULE_DIR/karabiner/karabiner.edn" "$CONFIG_DIR/karabiner/karabiner.edn"
+step "Compile Karabiner Config via Goku" goku
 
 append_rc_step "MACOS" "$(
   cat <<'SHELL'

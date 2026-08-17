@@ -7,14 +7,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DOTFILES_DIR="$SCRIPT_DIR"
 
 if false; then
-  source "./.utils/common.sh"
-  source "./.utils/packages.sh"
   source "./.utils/common_v2.sh"
   source "./.utils/packages_v2.sh"
 fi
 
-source "$DOTFILES_DIR/.utils/common.sh"
-source "$DOTFILES_DIR/.utils/packages.sh"
 source "$DOTFILES_DIR/.utils/packages_v2.sh"
 source "$DOTFILES_DIR/.utils/common_v2.sh"
 

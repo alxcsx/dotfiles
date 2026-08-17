@@ -4,14 +4,13 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../.utils/common_v2.sh"
-  source "../.utils/common.sh"
+  source "../dot.sh"
 fi
 
 # Helpers:
 mise_install_step() {
   step "install $1@$2 through mise" mise use --global "$1@$2" || {
-    echo -e "${RED}[!]${NC} Failed to install $1"
+    printfln "${RED}[!]${NC} Failed to install $1"
     return 1
   }
 }
