@@ -21,7 +21,7 @@
 
 ;;; Magit
 (use-package transient)
-
+(setq vc-handled-backends '(Git)) ;; Ignore other backends
 (use-package magit
   :after transient
   :bind
@@ -63,6 +63,7 @@
 ;; Mise
 (use-package mise
   :if (executable-find "mise")
+  :hook (after-init . mise-mode)
   :init
   (global-mise-mode 1))
 
@@ -126,10 +127,9 @@
   :init
   (dirvish-override-dired-mode)
   :custom
-
   (dired-listing-switches "-lAh --group-directories-first")
   (dired-kill-when-opening-new-dired-buffers t)
-  (dirvish-attributes '(nerd-icons collapse subtree-state vc-state git-msg))
+  (dirvish-attributes '(nerd-icons collapse subtree-state))
   (dirvish-side-width 25)
   (dirvish-hide-cursor t)
   :bind

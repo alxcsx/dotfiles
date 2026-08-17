@@ -46,7 +46,7 @@
   ;; Hide M-x commands that don't apply to the current mode (so we don't clutter the search)
   (setq read-extended-command-predicate #'command-completion-default-include-p)
   :config
-  (defvar my-modified-buffers-source
+  (defvar my/modified-buffers-source
     `(:name     "Modified Buffers"
                 :narrow   ?m
                 :category buffer
@@ -60,7 +60,7 @@
                                                 (buffer-file-name buf)))))))
 
   ;; Add the custom source to Consult's buffer list
-  (add-to-list 'consult-buffer-sources 'my-modified-buffers-source))
+  (add-to-list 'consult-buffer-sources 'my/modified-buffers-source))
 
 (use-package corfu
   :init

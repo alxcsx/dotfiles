@@ -41,9 +41,7 @@
 
 (use-package eldoc
   :ensure nil
-  :hook (emacs-lisp-mode . eldoc-mode)
-  :custom
-  (eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly))
+  :hook (emacs-lisp-mode . eldoc-mode))
 
 ;; Misc
 

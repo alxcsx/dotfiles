@@ -16,7 +16,7 @@
 	            cursor-in-non-selected-windows nil)
 
 (setq-default truncate-lines t)
-
+(setq auto-revert-check-vc-info nil)
 ;; Color Scheme
 (use-package gruber-darker-theme
   :config
@@ -55,15 +55,15 @@
 
 
 ;; Mode-Line
-(defface my-ui-faded-face
+(defface my/ui-faded-face
   '((t :inherit shadow))
   "Face for faded UI elements, like ellipses, line numbers, and wrap symbols.")
 
-(set-display-table-slot standard-display-table 'truncation (make-glyph-code ?… 'my-ui-faded-face))
-(set-display-table-slot standard-display-table 'wrap (make-glyph-code ?↩ 'my-ui-faded-face))
+(set-display-table-slot standard-display-table 'truncation (make-glyph-code ?… 'my/ui-faded-face))
+(set-display-table-slot standard-display-table 'wrap (make-glyph-code ?↩ 'my/ui-faded-face))
 
 ;; Native pill tags (replaces heavy svg-lib generation)
-(defface my-ui-pill-face
+(defface my/ui-pill-face
   '((t :inherit font-lock-keyword-face
        :inverse-video t
        :box (:line-width (3 . 6) :style flat-button)
@@ -78,20 +78,20 @@
 
 
 
-(defun my-ui-open-buffer-list (event)
+(defun my/ui-open-buffer-list (event)
   "Open `consult-buffer` interactively via a mouse click on the mode-line."
   (interactive "e") ;
   ;; Ensure we open ibuffer in the window you actually clicked
   (select-window (posn-window (event-start event)))
   (consult-buffer))
 
-(defvar my-ui-buffer-name-map
+(defvar my/ui-buffer-name-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [mode-line down-mouse-1] #'my-ui-open-buffer-list)
+    (define-key map [mode-line down-mouse-1] #'my/ui-open-buffer-list)
     map)
   "Keymap for the mode-line buffer name.")
 
-(defun my-ui-window-indicator ()
+(defun my/ui-window-indicator ()
   "Return a circle indicating if the window is active."
   (let* ((active (mode-line-window-selected-p))
          (color (if active 'font-lock-keyword-face 'shadow))
@@ -103,10 +103,10 @@
                 'face color)))
 
 
-(defvar my-modeline-left
+(defvar my/modeline-left
   `(" "
     ;; ACTIVE WINDOW INDICATOR
-    (:eval (my-ui-window-indicator))
+    (:eval (my/ui-window-indicator))
     ;; Narrow Warning
     " "
     (:eval (when (buffer-narrowed-p)
@@ -116,25 +116,25 @@
                        'face (if (mode-line-window-selected-p) 'bold 'shadow)
                        'help-echo "Left-click: Open Buffer List"
                        'mouse-face 'highlight
-                       'local-map my-ui-buffer-name-map))
+                       'local-map my/ui-buffer-name-map))
     "  "
     ;; Read-Only / Modified Status
-    (:eval (cond (buffer-read-only (propertize "RO" 'face 'my-ui-faded-face))
+    (:eval (cond (buffer-read-only (propertize "RO" 'face 'my/ui-faded-face))
                  ((buffer-modified-p) (propertize "**" 'face 'warning))
                  (t (propertize "RW" 'face 'shadow))))
     "  "
     ;; Major Mode (Language) using pill face
     (:eval (propertize (format " %s " (format-mode-line mode-name))
-                       'face 'my-ui-pill-face))
+                       'face 'my/ui-pill-face))
     ;; Line/Col numbers OR Selection Stats
     "   "
     (:eval (if (use-region-p)
                (let ((lines (count-lines (region-beginning) (region-end)))
                      (chars (- (region-end) (region-beginning))))
                  (propertize (format "%d:%d" lines chars) 'face 'font-lock-keyword-face))
-             (propertize "%l:%c" 'face 'my-ui-faded-face)))))
+             (propertize "%l:%c" 'face 'my/ui-faded-face)))))
 
-(defvar my-modeline-right
+(defvar my/modeline-right
   '(;; Macro Recording Indicator
     (:eval (when defining-kbd-macro
              (propertize "⏺ REC  " 'face '(:inherit warning :weight bold))))
@@ -145,20 +145,20 @@
                (concat (propertize (if (fboundp 'nerd-icons-octicon)
                                        (nerd-icons-octicon "nf-oct-git_branch")
                                      "")
-                                   'face 'my-ui-faded-face)
+                                   'face 'my/ui-faded-face)
                        " "
-                       (propertize branch 'face 'my-ui-faded-face)))))
+                       (propertize branch 'face 'my/ui-faded-face)))))
     " "))
 
 (setq-default mode-line-format
               `("%e"
-                ,@my-modeline-left
+                ,@my/modeline-left
 
                 ;; The magic spacer that pushes the right side
                 (:eval (propertize " " 'display
-                                   `(space :align-to (- right ,(string-width (format-mode-line my-modeline-right))))))
+                                   `(space :align-to (- right ,(string-width (format-mode-line my/modeline-right))))))
 
-                ,@my-modeline-right))
+                ,@my/modeline-right))
 
 ;; Apply the 3D-removal tweaks at the same time
 (set-face-attribute 'mode-line nil :box nil :overline t :background 'unspecified)

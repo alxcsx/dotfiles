@@ -20,17 +20,20 @@
   :config
   (apheleia-global-mode +1))
 
+(setq eldoc-idle-delay 0.5
+      eldoc-echo-area-use-multiline-p nil)
+
 (use-package eglot
   :ensure nil
   :custom
   (eglot-autoshutdown t)
-  (eglot-sync-connect 1) ;; don't block UI while waiting
+  (eglot-sync-connect 0)
   (eglot-events-buffer-size 0)
   :bind
   (:map eglot-mode-map
         ("C-c l r" . eglot-rename)
         ("C-c l a" . eglot-code-actions)
-        ("C-c l f" . eglot-format)
+        ("C-c l f" . apheleia-format-buffer)
         ("C-c l d" . eglot-find-declarations)
         ("M-."     . xref-find-definitions)
         ("M-?"     . xref-find-references)
@@ -38,6 +41,13 @@
   :config
   (defun my/eglot-format-on-save ()
     (add-hook 'before-save-hook #'eglot-format-buffer nil t)))
+
+(setq-default eglot-workspace-configuration '())
+
+(defun my/eglot-merge-workspace-config (key val)
+  "Incrementally merge KEY and VAL into `eglot-workspace-configuration`."
+  (setq-default eglot-workspace-configuration
+                (plist-put (default-value 'eglot-workspace-configuration) key val)))
 
 ;; improve performance by converting JSON payloads into native bytecote (uses a rust service in the background)
 (use-package eglot-booster
@@ -67,12 +77,10 @@
 
 
 ;; MISC
-
 (defun my/setup-lsp-and-format()
   "Lint and format."
   (interactive)
-  (eglot-ensure)
-  (my/eglot-format-on-save))
+  (eglot-ensure))
 
 
 (provide 'lang/core)

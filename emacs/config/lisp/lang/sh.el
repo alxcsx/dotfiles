@@ -4,6 +4,11 @@
 
 (require 'lang/core)
 
+(defun my/sh-mode-setup ()
+  "Automatically make file executable on save if it has a shebang."
+  (require 'executable)
+  (add-hook 'after-save-hook #'executable-make-buffer-file-executable-if-script-p nil t))
+
 (use-package sh-script
   :ensure nil
   :custom
@@ -12,20 +17,21 @@
   (add-to-list 'major-mode-remap-alist '(sh-mode . bash-ts-mode))
   :config
   (add-to-list 'treesit-language-source-alist '(bash "https://github.com/tree-sitter/tree-sitter-bash"))
-  (unless (treesit-language-available-p 'bash) (treesit-install-language-grammar 'bash))
   :hook
-  ((sh-mode bash-ts-mode) . my/setup-lsp-and-format)
-  ((sh-mode bash-ts-mode) . my/sh-mode-setup))
+  (bash-ts-mode . eglot-ensure)
+  (bash-ts-mode . my/sh-mode-setup))
 
 (use-package fish-mode
   :mode "\\.fish\\'"
   :custom
   (fish-indent-offset 2))
 
-(defun my/sh-mode-setup ()
-  "Custom hooks for shell scripting."
-  ;; Automatically make file executable on save if it has a shebang
-  (add-hook 'after-save-hook #'executable-make-buffer-file-executable-p nil t))
+(with-eval-after-load 'eglot
+  (my/eglot-merge-workspace-config
+   :bashIde
+   '(:backgroundAnalysisMaxFiles 100
+                                 :explainshellEndpoint ""
+                                 :glob "**/*@(.sh|.inc|.bash|.command)")))
 
 (provide 'lang/sh)
 ;;; sh.el ends here

@@ -2,7 +2,7 @@
 ;;; Commentary:
 ;;; Code:
 
-(defun my-godot-lsp-contact (_interactive)
+(defun my/godot-lsp-contact (_interactive)
   "Dynamically determine the Godot LSP port based on the project version."
   (let ((port 6008) ;; Default to Godot 4 port
         (proj-dir (locate-dominating-file default-directory "project.godot")))
@@ -19,7 +19,7 @@
   :hook (gdscript-mode . eglot-ensure)
   :config
   (with-eval-after-load 'eglot
-    (add-to-list 'eglot-server-programs '(gdscript-mode . my-godot-lsp-contact))))
+    (add-to-list 'eglot-server-programs '(gdscript-mode . my/godot-lsp-contact))))
 
 
 (provide 'lang/godot)

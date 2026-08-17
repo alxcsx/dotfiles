@@ -8,17 +8,19 @@
   (setq custom-file (expand-file-name "custom.el" user-emacs-directory)))
 
 (setq debug-on-error t)
+
 (add-to-list 'warning-suppress-types '(face))
 
 (when (file-exists-p custom-file)
   (load custom-file nil t))
 
 (when (eq system-type 'darwin)
-  (require 'init-macos) )
+  (require 'init-macos))
 
 ;; Core:
 (require 'init/elpaca)
 (require 'init/core)
+;; Tooling:
 (require 'init/ui)
 (require 'init/completion)
 (require 'init/editing)
