@@ -1,0 +1,4 @@
+source-path=SCRIPTDIR
+external-sources=true
+
+disable=SC2016

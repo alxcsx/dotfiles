@@ -3,30 +3,98 @@
 # desc:		Dotfiles Manager
 # author:	Alex Candido <github:alxcsx>
 
-# startup
-DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-COMMAND="$1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOTFILES_DIR="$SCRIPT_DIR"
 
-source "$DOTFILES_DIR/.utils/common.sh"
+if false; then
+  source "./.utils/common_v2.sh"
+  source "./.utils/packages_v2.sh"
+fi
 
-# Helper Functions
-print_help() {
-  printfln "${BLUE}Help:${NC} $0 <command> [modules...]"
-  echo ""
-  printfln "${BLUE}Commands:${NC}"
-  printfln "  ${GREEN}install${NC}    Install [modules...]"
-  printfln "  ${GREEN}uninstall${NC}  Uninstall [modules...]"
-  printfln "  ${GREEN}status${NC}     Show status of all managed modules"
-  echo ""
-  printfln "${BLUE}Examples:${NC}"
-  printfln "  ${YELLOW}$0 install${NC}"
-  printfln "  ${YELLOW}$0 install zsh mac${NC}"
-  printfln "  ${YELLOW}$0 uninstall emacs${NC}"
-  printfln "  ${YELLOW}$0 status${NC}"
+source "$DOTFILES_DIR/.utils/packages_v2.sh"
+source "$DOTFILES_DIR/.utils/common_v2.sh"
+
+export DOT_VERBOSE=0
+export DOT_DRY_RUN=0
+export DOT_HALT_ON_ERROR=1
+export DOT_CURRENT_MODULE=""
+export DOT_STEP_COUNT=0
+export DOT_ACTION=""
+MODULES=()
+
+# 3. Parse Global Arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -v | --verbose)
+    export DOT_VERBOSE=1
+    shift 1
+    ;;
+  --dry-run)
+    export DOT_DRY_RUN=1
+    shift 1
+    ;;
+  --halt)
+    export DOT_HALT_ON_ERROR=1
+    shift 1
+    ;;
+  --no-halt)
+    export DOT_HALT_ON_ERROR=0
+    shift 1
+    ;;
+  install | status)
+    DOT_ACTION="$1"
+    shift 1
+    ;;
+  -*)
+    printfln "${RED}[!]${NC} Unknown global flag: $1"
+    exit 1
+    ;;
+  *)
+    MODULES+=("$1")
+    shift 1
+    ;;
+  esac
+done
+
+if [[ -z "$DOT_ACTION" || ("$DOT_ACTION" != "status" && ${#MODULES[@]} -eq 0) ]]; then
+  printfln "\t${RED}[!]${NC} Usage: dot.sh [FLAGS] <install|status> <module1> [module2...]"
+  printfln "\tFlags: -v/--verbose, --dry-run, --halt, --no-halt\n"
   exit 1
-}
+fi
 
-if [ "$COMMAND" = "status" ]; then
+# Keep sudo active
+if [[ "$DOT_ACTION" == "install" && "$DOT_DRY_RUN" == "0" ]]; then
+  printfln "${BLUE}[i]${NC} Authenticating sudo access for installation..."
+  assert sudo -v -- "\tSudo authentication failed." "\tYou need admin rights to install dotfiles."
+  while true; do
+    sudo -n true
+    sleep 60
+    kill -0 "$$" || exit
+  done 2>/dev/null &
+  printfln "${GREEN}[OK]${NC} Sudo credentials cached."
+fi
+
+printfln "\n${BLUE}[i]${NC} Starting dotfiles manager in ${YELLOW}${DOT_ACTION}${NC} mode..."
+[[ "$DOT_DRY_RUN" == "1" ]] && printfln "    ${YELLOW}[!] DRY RUN ENABLED - No changes will be made to the system.${NC}"
+
+case "$DOT_ACTION" in
+install)
+  for module in "${MODULES[@]}"; do
+    export MODULE_DIR="$DOTFILES_DIR/$module"
+
+    if [[ -f "$MODULE_DIR/install.sh" ]]; then
+      printfln "${BLUE}=== [ Module: ${module} ] ===${NC}"
+      export DOT_CURRENT_MODULE="$module"
+      export DOT_STEP_COUNT=0
+      printfln "${BLUE}[i]${NC} Verifying Module Requirements:"
+      [[ -f "$MODULE_DIR/requirements.sh" ]] && source "$MODULE_DIR/requirements.sh"
+      source "$MODULE_DIR/install.sh"
+    else
+      printfln "\n${YELLOW}[!]${NC} Skipping '$module': No install.sh script found."
+    fi
+  done
+  ;;
+status)
   printfln "${BLUE}Managed Modules Status:${NC}"
   printfln "${BLUE}---------------------------${NC}"
   if [ -s "$STATE_FILE" ]; then
@@ -37,52 +105,7 @@ if [ "$COMMAND" = "status" ]; then
     printfln "${YELLOW}No managed modules found.${NC}"
   fi
   exit 0
-fi
-
-case "$COMMAND" in install | uninstall)
-  shift
-  ;;
-*)
-  print_help
   ;;
 esac
 
-if [ $# -gt 0 ]; then
-  MODULES="$@"
-else
-  printfln "${RED}[!] Error: You must explicitly specify which modules to use.${NC}"
-  echo ""
-  print_help
-fi
-
-printfln "${BLUE}[i]${NC} Starting $COMMAND process..."
-
-for module in $MODULES; do
-  SCRIPT_PATH="$DOTFILES_DIR/$module/$COMMAND.sh"
-
-  if [ -f "$SCRIPT_PATH" ]; then
-    if [ "$COMMAND" = "install" ]; then
-      printfln "${GREEN}[+]${NC} Installing: $module"
-    else
-      printfln "${YELLOW}[-]${NC} Uninstalling: $module"
-    fi
-
-    # Execute the module script with DOTFILES_DIR in environment
-    export DOTFILES_DIR
-    sh "$SCRIPT_PATH"
-
-    if [ $? -eq 0 ]; then # Check if the script succeeded before updating state
-      if [ "$COMMAND" = "install" ]; then
-        update_state "$module" "installed" "$(get_git_hash)"
-      elif [ "$COMMAND" = "uninstall" ]; then
-        remove_state "$module"
-      fi
-    else
-      printfln "${RED}[!] Error: $module $COMMAND failed. State not updated.${NC}"
-    fi
-  else
-    printfln "${YELLOW}[!] Warning:${NC} Module '$module' is missing '$COMMAND.sh'"
-  fi
-done
-
-printfln "${GREEN}[i]${NC} All done!"
+printfln "${GREEN}[OK]${NC} All tasks complete! 🎉\n"
