@@ -76,12 +76,5 @@
         ("C-c TAB" . hs-toggle-hiding)))
 
 
-;; MISC
-(defun my/setup-lsp-and-format()
-  "Lint and format."
-  (interactive)
-  (eglot-ensure))
-
-
 (provide 'lang/core)
 ;;; core.el ends here

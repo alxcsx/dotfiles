@@ -11,6 +11,9 @@
   (setq exec-path-from-shell-arguments '("-l"))
   (exec-path-from-shell-initialize))
 
+(use-package envrc
+  :ensure t
+  :hook (after-init . envrc-global-mode))
 
 (use-package no-littering
   :config
@@ -62,6 +65,15 @@
     (when (file-directory-p gnubin)
       (add-to-list 'exec-path gnubin)
       (setenv "PATH" (concat gnubin ":" (getenv "PATH"))))))
+
+
+;; Tools
+
+(defmacro cmd (&rest body)
+  "Shortcut to create an interactive lambda with no arguments."
+  `(lambda ()
+     (interactive "^")
+     ,@body))
 
 (provide 'init/core)
 ;;; core.el ends here

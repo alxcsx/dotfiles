@@ -139,6 +139,7 @@
    ("a"   . dirvish-layout-toggle)
    ("<backspace>" . dired-up-directory)
    ("<return>"    . my/dirvish-smart-enter)
+   ("<mouse-1>"   . my/dirvish-smart-enter)
    ("SPC"         . my/dirvish-smart-space)
    ("<S-return>"  . dired-find-file)))
 
@@ -148,6 +149,17 @@
 
 ;; Remember cursor position across sessions
 (save-place-mode 1)
+
+(defun my/kill-buffer-and-window ()
+  "Kill current buffer and close its window if others exist."
+  (interactive)
+  (let ((buf (current-buffer)))
+    (call-interactively #'kill-buffer)
+    (when (and (not (buffer-live-p buf))
+               (> (length (window-list)) 1))
+      (delete-window))))
+
+(global-set-key (kbd "C-x k") #'my/kill-buffer-and-window)
 
 (provide 'init/tools)
 ;;; tools.el ends here

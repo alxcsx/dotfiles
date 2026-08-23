@@ -70,7 +70,15 @@
   (corfu-auto-delay 0.2)
   (corfu-auto-prefix 2)
   (corfu-cycle t)
-  (corfu-quit-no-match 'separator))
+  (corfu-quit-no-match 'separator)
+  :bind (("C-c SPC" . completion-at-point)))
+
+(use-package kind-icon
+  :ensure t
+  :after corfu
+  :config
+  (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+
 
 ;; Templating
 (use-package tempel
@@ -84,7 +92,12 @@
         ("<tab>" . tempel-next)
         ("TAB" . tempel-next)
         ("S-TAB" . tempel-previous)
-        ("<backtab>" . tempel-previous)))
+        ("<backtab>" . tempel-previous))
+  :init
+  (defun my/tempel-setup-capf ()
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand completion-at-point-functions)))
+  (add-hook 'prog-mode-hook #'my/tempel-setup-capf))
 
 (use-package tempel-collection)
 
