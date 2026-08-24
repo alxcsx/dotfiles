@@ -1,90 +1,158 @@
 ;;; ui.el ---  -*- lexical-binding: t; -*-
 ;;; Commentary:
+;;;   Modern UI configuration for Emacs 30+
+;;;   Optimized for performance and stability
 ;;; Code:
 
-;; Core
+
+;; General Settings
 (setq-default fill-column 80
-              sentence-end-double-space nil
               bidi-paragraph-direction 'left-to-right
-              truncate-string-ellipsis "…")
+              truncate-string-ellipsis "…"
+              auto-revert-check-vc-info nil
+              truncate-lines t)
 
-(when (fboundp 'pixel-scroll-precision-mode) (pixel-scroll-precision-mode 1))
-(setq mouse-wheel-scroll-amount-horizontal 4)
-(setq hscroll-step 1 hscroll-margin 2)
-(blink-cursor-mode 0)
-(setq-default cursor-type '(hbar . 2)
-	            cursor-in-non-selected-windows nil)
+(setopt mouse-wheel-scroll-amount-horizontal 4
+        hscroll-step 1
+        hscroll-margin 2
+        window-divider-default-right-width 6
+        window-combination-resize nil)
 
-(setq-default truncate-lines t)
-(setq auto-revert-check-vc-info nil)
-;; Color Scheme
-(use-package gruber-darker-theme
-  :config
-  (mapc #'disable-theme custom-enabled-themes)
-  (load-theme 'gruber-darker t))
-
-;; Layout
-(setq window-divider-default-right-width 1
-      window-divider-default-bottom-width 1
-      window-combination-resize nil)
-
+(menu-bar-mode -1)
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(context-menu-mode 1)
 (window-divider-mode 1)
-(set-face-attribute 'window-divider nil :foreground 'unspecified :inherit 'shadow)
 
-(modify-all-frames-parameters
- '((internal-border-width . 4)
-   (right-fringe . 0)
-   (left-fringe . 2)))
+(setopt frame-resize-pixelwise t)
 
-;; Icons
+;; Cursor & Focus
+(setq-default cursor-type '(hbar . 2)
+              cursor-in-non-selected-windows nil
+              focus-follows-mouse t
+              mouse-autoselect-window nil)
+(blink-cursor-mode -1)
+(pixel-scroll-precision-mode 1)
 
+;; Font Configuration
+(defconst my/ui-font-mono "JetBrains Mono")
+(defconst my/ui-font-italic "Victor Mono")
+(defconst my/ui-font-height 140)
+
+(set-face-attribute 'default nil
+                    :family my/ui-font-mono
+                    :height my/ui-font-height
+                    :weight 'regular)
+
+(set-face-attribute 'bold nil
+                    :family my/ui-font-mono
+                    :weight 'medium)
+
+(set-face-attribute 'italic nil
+                    :family my/ui-font-italic
+                    :weight 'semilight
+                    :slant 'italic)
+
+;; Theme
+(defun my/ui--safe-color (color &optional fallback)
+  (if (and (stringp color)
+           (not (string-prefix-p "unspecified" color)))
+      color
+    fallback))
+
+(defun my/ui-refresh-theme-faces ()
+  (let* ((default-bg (my/ui--safe-color (face-background 'default nil 'default) "#181818"))
+         (mode-line-bg (my/ui--safe-color (face-background 'mode-line nil 'default)))
+         (mode-line-active-bg (my/ui--safe-color (face-background 'mode-line-active nil 'default)))
+         (divider-bg (or mode-line-bg mode-line-active-bg default-bg)))
+    ;; Frame background.
+    (setq default-frame-alist (cons
+                               (cons 'background-color default-bg)
+                               (assq-delete-all 'background-color default-frame-alist)))
+
+    (dolist (frame (frame-list))
+      (when (display-graphic-p frame)
+        (set-frame-parameter frame 'background-color default-bg)))
+
+    ;; Flatten mode-line, but keep theme colors.
+    (dolist (face '(mode-line mode-line-active mode-line-inactive))
+      (when (facep face)
+        (set-face-attribute face nil
+                            :box nil
+                            :overline nil
+                            :underline nil)))
+
+    (when (and (facep 'mode-line-active)
+               mode-line-bg
+               (or (not mode-line-active-bg)
+                   (equal mode-line-active-bg default-bg)))
+      (set-face-background 'mode-line-active mode-line-bg)
+      (setq divider-bg mode-line-bg))
+
+    ;; Separators.
+    (dolist (face '(window-divider
+                    window-divider-first-pixel
+                    window-divider-last-pixel
+                    vertical-border
+                    fringe))
+      (when (facep face)
+        (set-face-background face divider-bg)
+        (set-face-foreground face divider-bg)))))
+
+
+(add-hook 'after-load-theme-hook #'my/ui-refresh-theme-faces)
+
+
+;; Theme
+
+(use-package gruber-darker-theme
+  :demand t
+  :config
+  (load-theme 'gruber-darker t)
+  (dolist (theme (remq 'gruber-darker custom-enabled-themes))
+    (disable-theme theme))
+  (my/ui-refresh-theme-faces))
+
+
+;; Refresh correctly for emacsclient frames
+
+(defun my/ui-refresh-client-frame (frame)
+  (when (display-graphic-p frame)
+    (load-theme 'gruber-darker t)
+    (dolist (theme (remq 'gruber-darker custom-enabled-themes))
+      (disable-theme theme))
+    (my/ui-refresh-theme-faces)
+    (remove-hook 'after-make-frame-functions #'my/ui-refresh-client-frame)))
+
+(if (daemonp)
+    (add-hook 'after-make-frame-functions #'my/ui-refresh-client-frame))
+
+;; Faces
+(defface my/ui-faded-face
+  '((t :inherit shadow))
+  "Face for faded UI elements.")
+
+(defface my/ui-pill-face
+  '((t :inherit font-lock-keyword-face
+       :inverse-video t))
+  "A native pill tag.")
+
+;; Icons & Marginalia
 (use-package nerd-icons
   :custom
   (nerd-icons-font-family "Symbols Nerd Font Mono"))
 
-(use-package nerd-icons-completion
-  :after marginalia
-  :config
-  (nerd-icons-completion-mode 1)
-  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+;; Display Table
+(setq standard-display-table
+      (or standard-display-table (make-display-table)))
 
-;; Typography
-(set-face-attribute 'default nil :family "JetBrains Mono" :height 140 :weight 'regular)
-(set-face-attribute 'bold nil :family "JetBrains Mono" :weight 'medium)
-(set-face-attribute 'italic nil :family "Victor Mono" :weight 'semilight :slant 'italic)
+(set-display-table-slot standard-display-table 'truncation
+                        (make-glyph-code ?… 'my/ui-faded-face))
 
+(set-display-table-slot standard-display-table 'wrap
+                        (make-glyph-code ?↩ 'my/ui-faded-face))
 
-;; Mode-Line
-(defface my/ui-faded-face
-  '((t :inherit shadow))
-  "Face for faded UI elements, like ellipses, line numbers, and wrap symbols.")
-
-(set-display-table-slot standard-display-table 'truncation (make-glyph-code ?… 'my/ui-faded-face))
-(set-display-table-slot standard-display-table 'wrap (make-glyph-code ?↩ 'my/ui-faded-face))
-
-;; Native pill tags (replaces heavy svg-lib generation)
-(defface my/ui-pill-face
-  '((t :inherit font-lock-keyword-face
-       :inverse-video t
-       :box (:line-width (3 . 6) :style flat-button)
-       :weight bold))
-  "A native pill tag.")
-
-(require 'uniquify)
-(setq uniquify-buffer-name-style 'forward
-      uniquify-separator "/"
-      uniquify-after-kill-buffer-p t
-      uniquify-ignore-buffers-re "^\\*")
-
-
-
-(defun my/ui-open-buffer-list (event)
-  "Open `consult-buffer` interactively via a mouse click on the mode-line."
-  (interactive "e") ;
-  ;; Ensure we open ibuffer in the window you actually clicked
-  (select-window (posn-window (event-start event)))
-  (consult-buffer))
-
+;; Buffer & Window Interaction
 (defvar my/ui-buffer-name-map
   (let ((map (make-sparse-keymap)))
     (define-key map [mode-line down-mouse-1] #'my/ui-open-buffer-list)
@@ -97,36 +165,46 @@
          (color (if active 'font-lock-keyword-face 'shadow))
          (icon (ignore-errors
                  (if active
-                     (nerd-icons-faicon "nf-fa-circle")
-                   (nerd-icons-faicon "nf-fa-circle_o")))))
+                     (nerd-icons-faicon "circle")
+                   (nerd-icons-faicon "circle-o")))))
     (propertize (concat (or icon (if active "◉" "○")) " ")
                 'face color)))
 
+(defun my/ui-open-buffer-list (event)
+  "Open a buffer list from the mode line."
+  (interactive "e")
+  (select-window (posn-window (event-start event)))
+  (if (fboundp 'consult-buffer)
+      (call-interactively #'consult-buffer)
+    (call-interactively #'list-buffers)))
 
+;; Uniquify Buffer Names
+(use-package uniquify
+  :ensure nil
+  :custom
+  (uniquify-buffer-name-style 'forward)
+  (uniquify-separator "/")
+  (uniquify-after-kill-buffer-p t)
+  (uniquify-ignore-buffers-re "^\\*"))
+
+;; Mode Line Configuration
 (defvar my/modeline-left
   `(" "
-    ;; ACTIVE WINDOW INDICATOR
     (:eval (my/ui-window-indicator))
-    ;; Narrow Warning
     " "
-    (:eval (when (buffer-narrowed-p)
-             (propertize " NARROWED " 'face '(:inherit warning :inverse-video t :weight bold))))
-    ;; Buffer name
     (:eval (propertize (buffer-name)
                        'face (if (mode-line-window-selected-p) 'bold 'shadow)
-                       'help-echo "Left-click: Open Buffer List"
+                       'help-echo "Click to open buffer list"
                        'mouse-face 'highlight
                        'local-map my/ui-buffer-name-map))
     "  "
-    ;; Read-Only / Modified Status
-    (:eval (cond (buffer-read-only (propertize "RO" 'face 'my/ui-faded-face))
-                 ((buffer-modified-p) (propertize "**" 'face 'warning))
-                 (t (propertize "RW" 'face 'shadow))))
+    (:eval (propertize (cond (buffer-read-only " RO ")
+                             ((buffer-modified-p) " ** ")
+                             (t " RW "))
+                       'face 'my/ui-faded-face))
     "  "
-    ;; Major Mode (Language) using pill face
     (:eval (propertize (format " %s " (format-mode-line mode-name))
                        'face 'my/ui-pill-face))
-    ;; Line/Col numbers OR Selection Stats
     "   "
     (:eval (if (use-region-p)
                (let ((lines (count-lines (region-beginning) (region-end)))
@@ -135,15 +213,13 @@
              (propertize "%l:%c" 'face 'my/ui-faded-face)))))
 
 (defvar my/modeline-right
-  '(;; Macro Recording Indicator
+  `(" "
     (:eval (when defining-kbd-macro
              (propertize "⏺ REC  " 'face '(:inherit warning :weight bold))))
-
-    ;; Git Branch
     (:eval (when (and vc-mode (stringp vc-mode))
              (let ((branch (replace-regexp-in-string "^[ -]*[A-Za-z]+[-:]" "" (substring-no-properties vc-mode))))
                (concat (propertize (if (fboundp 'nerd-icons-octicon)
-                                       (nerd-icons-octicon "nf-oct-git_branch")
+                                       (nerd-icons-octicon "git-branch")
                                      "")
                                    'face 'my/ui-faded-face)
                        " "
@@ -151,78 +227,63 @@
     " "))
 
 (setq-default mode-line-format
-              `("%e"
-                ,@my/modeline-left
+              '("%e"
+                (:eval
+                 (let* ((right (format-mode-line my/modeline-right))
+                        (right-width (string-width right))
+                        (left (format-mode-line my/modeline-left)))
+                   (concat left
+                           (propertize " "
+                                       'display `(space :align-to (- right ,right-width)))
+                           right)))))
 
-                ;; The magic spacer that pushes the right side
-                (:eval (propertize " " 'display
-                                   `(space :align-to (- right ,(string-width (format-mode-line my/modeline-right))))))
-
-                ,@my/modeline-right))
-
-;; Apply the 3D-removal tweaks at the same time
-(set-face-attribute 'mode-line nil :box nil :overline t :background 'unspecified)
-(set-face-attribute 'mode-line-inactive nil :box nil :overline t :background 'unspecified)
-;; Remove 3D effect from mode-line
-
-;; Line numbers
+;;  Line Numbers
+(setq-default display-line-numbers-type t)
+(setq-default display-line-numbers-width 3)
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 (add-hook 'conf-mode-hook #'display-line-numbers-mode)
 (add-hook 'text-mode-hook #'display-line-numbers-mode)
 
-(setq-default display-line-numbers-type t)
-(setq-default display-line-numbers-width 3)
-
-;; Confirmation Prompt
-
+;;  Minibuffer & Misc
 (setq use-dialog-box t)
 (setq visible-bell t)
-(setopt use-short-answers t)
-
+(setq use-short-answers t)
 (set-face-attribute 'minibuffer-prompt nil
                     :weight 'bold
                     :height 1.2)
 
-;; Mouse Focus
-
-(setq mouse-autoselect-window -0.1)
-(setq focus-follows-mouse t)
-
-
-;; Frame Control
-
+;;  Window Management
 (defun my/move-to-clean-frame ()
-  "Move the current window into a new, dedicated, mode-line-free frame."
+  "Move the current buffer into a new clean frame."
   (interactive)
-  (let ((buf (current-buffer))
-        (orig-win (selected-window)))
-    (let* ((new-frame (make-frame '((menu-bar-lines . 0)
-                                    (tool-bar-lines . 0)
-                                    (vertical-scroll-bars . nil))))
-           (new-win (frame-root-window new-frame)))
-      (set-window-buffer new-win buf)
-      (set-window-dedicated-p new-win t)
-      (select-frame-set-input-focus new-frame)
-      (when (window-deletable-p orig-win)
-        (delete-window orig-win)))))
+  (let* ((buf (current-buffer))
+         (old-win (selected-window))
+         (new-frame (make-frame))
+         (new-win (frame-root-window new-frame)))
+    (set-window-buffer new-win buf)
+    (select-frame-set-input-focus new-frame)
+    (set-window-dedicated-p new-win t)
+    (when (window-deletable-p old-win)
+      (delete-window old-win))))
 
-(global-set-key (kbd "C-c f") #'my/move-to-clean-frame)
 
 (defun my/toggle-window-split ()
-  "Toggle between a horizontal and vertical split for 2 windows."
+  "Toggle between horizontal and vertical split for two windows."
   (interactive)
-  (if (not (= (count-windows) 2))
-      (message "This command only works when there are exactly 2 windows on screen.")
-    (let ((this-buf (window-buffer))
-          (other-buf (window-buffer (next-window)))
-          (stacked (= (window-width) (frame-width))))
-      (delete-other-windows)
-      (if stacked
-          (split-window-right)   ; Pivot to side-by-side
-        (split-window-below))    ; Pivot back to top-and-bottom
-      (set-window-buffer (next-window) other-buf))))
+  (unless (= (count-windows) 2)
+    (user-error "This command only works when there are exactly 2 windows"))
+  (let* ((this-buf (window-buffer))
+         (other-buf (window-buffer (next-window)))
+         (stacked (window-full-width-p)))
+    (delete-other-windows)
+    (if stacked
+        (split-window-right)
+      (split-window-below))
+    (set-window-buffer (selected-window) this-buf)
+    (set-window-buffer (next-window) other-buf)))
 
-(global-set-key (kbd "C-c w") #'my/toggle-window-split)
+(keymap-global-set "C-c w" #'my/toggle-window-split)
+(keymap-global-set "C-c f" #'my/move-to-clean-frame)
 
 (provide 'init/ui)
 ;;; ui.el ends here

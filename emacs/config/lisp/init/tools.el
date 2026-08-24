@@ -79,58 +79,31 @@
      ".tool-versions")))
 
 
-(defun my/project-info ()
-  "Print the current project root, or warn if not in a project."
-  (interactive)
-  (if-let ((proj (project-current)))
-      (message "Current project root: %s" (project-root proj))
-    (message "Not in a recognized project!")))
-
 ;;; Dirvish
-(defun my/toggle-project-tree ()
-  "Toggle Dirvish side tree, defaulting to ~ when on the dashboard."
-  (interactive)
-  (let ((tree-is-open (seq-find (lambda (w)
-                                  (and (window-parameter w 'window-side)
-                                       (with-current-buffer (window-buffer w)
-                                         (derived-mode-p 'dired-mode))))
-                                (window-list))))
-    (if tree-is-open
-        (dirvish-side) ; 1. If it's already open anywhere, close it!
-
-      (let ((default-directory (if (eq major-mode 'dashboard-mode)
-                                   (expand-file-name "~/")
-                                 default-directory)))
-        (dirvish-side)))))
-
-(defun my/dirvish-smart-enter ()
-  "Toggle subtree for folders. Open files and close the sidebar."
-  (interactive)
-  (let ((file (dired-get-filename nil t)))
-    (if (and file (file-directory-p file))
-        (dirvish-subtree-toggle)
-      (call-interactively #'dired-find-file) ; default behaviour
-
-      (let ((tree-win (seq-find (lambda (w) (window-parameter w 'window-side))
-                                (window-list))))
-        (when tree-win
-          (delete-window tree-win))))))
-
-(defun my/dirvish-smart-space ()
-  "Toggle subtree if on a folder, do nothing on a file."
-  (interactive)
-  (let ((file (dired-get-filename nil t)))
-    (when (and file (file-directory-p file))
-      (dirvish-subtree-toggle))))
+(use-package dired
+  :ensure nil
+  :hook
+  (dired-mode . (lambda () (setq-local mouse-1-click-follows-link nil)))
+  :bind
+  (:map dired-mode-map
+        ("RET"              . my/dirvish-smart-enter)
+        ("<return>"         . my/dirvish-smart-enter)
+        ("SPC"              . my/dirvish-smart-space)
+        ("<down-mouse-1>"   .  my/dirvish-smart-mouse)
+        ("<mouse-1>"   . ignore)
+        ("<double-mouse-1>" . ignore)
+        ("<drag-mouse-1>"   . my/dirvish-smart-mouse)
+        ([remap dired-mouse-find-file] . my/dirvish-smart-mouse)))
 
 (use-package dirvish
+  :demand t
   :init
   (dirvish-override-dired-mode)
   :custom
   (dired-listing-switches "-lAh --group-directories-first")
   (dired-kill-when-opening-new-dired-buffers t)
   (dirvish-attributes '(nerd-icons collapse subtree-state))
-  (dirvish-side-width 25)
+  (dirvish-side-width 38)
   (dirvish-hide-cursor t)
   :bind
   (("C-c e" . my/toggle-project-tree)
@@ -139,7 +112,10 @@
    ("a"   . dirvish-layout-toggle)
    ("<backspace>" . dired-up-directory)
    ("<return>"    . my/dirvish-smart-enter)
-   ("<mouse-1>"   . my/dirvish-smart-enter)
+   ("<down-mouse-1>"   .  my/dirvish-smart-mouse)
+   ("<mouse-1>"   . ignore)
+   ("<double-mouse-1>" . ignore)
+   ("<drag-mouse-1>"   . my/dirvish-smart-mouse)
    ("SPC"         . my/dirvish-smart-space)
    ("<S-return>"  . dired-find-file)))
 
@@ -160,6 +136,108 @@
       (delete-window))))
 
 (global-set-key (kbd "C-x k") #'my/kill-buffer-and-window)
+
+;; Helpers
+
+(defun my/project-info ()
+  "Print the current project root, or warn if not in a project."
+  (interactive)
+  (if-let ((proj (project-current)))
+      (message "Current project root: %s" (project-root proj))
+    (message "Not in a recognized project!")))
+
+(defun my/dirvish-side-windows ()
+  "Return Dirvish side tree windows in the current frame."
+  (seq-filter
+   (lambda (w)
+     (and (window-parameter w 'window-side)
+          (with-current-buffer (window-buffer w)
+            (derived-mode-p 'dired-mode))))
+   (window-list)))
+
+(defun my/toggle-project-tree ()
+  "Toggle Dirvish side tree globally."
+  (interactive)
+  (require 'dirvish nil t)
+  (if-let ((wins (my/dirvish-side-windows)))
+      (dolist (win wins)
+        (when (window-deletable-p win)
+          (delete-window win)))
+    (let ((default-directory
+           (if (eq major-mode 'dashboard-mode)
+               (expand-file-name "~/")
+             default-directory)))
+      (dirvish-side))))
+
+
+
+(defun my/main-window ()
+  "Return the largest non-side window."
+  (let ((best nil)
+        (best-size -1))
+    (walk-window-tree
+     (lambda (w)
+       (unless (or (window-parameter w 'window-side)
+                   (window-minibuffer-p w))
+         (let ((size (* (window-height w)
+                        (window-width w))))
+           (when (> size best-size)
+             (setq best w best-size size))))))
+    (or best (selected-window))))
+
+(defun my/display-buffer-in-main-window (buffer _alist)
+  "Display BUFFER in the largest non-side window."
+  (let ((window (my/main-window)))
+    (when window
+      (let ((dedicated (window-dedicated-p window)))
+        (set-window-dedicated-p window nil)
+        (set-window-buffer window buffer)
+        (set-window-dedicated-p window dedicated))
+      (select-window window)
+      window)))
+
+(defun my/delete-dirvish-side-window ()
+  "Delete the Dirvish side tree window if it exists."
+  (when-let ((win (seq-find
+                   (lambda (w)
+                     (and (window-parameter w 'window-side)
+                          (with-current-buffer (window-buffer w)
+                            (derived-mode-p 'dired-mode))))
+                   (window-list))))
+    (when (window-deletable-p win)
+      (delete-window win))))
+
+(defun my/dirvish-open-entry (file)
+  (cond
+   ((and file (file-directory-p file))
+    (dirvish-subtree-toggle))
+   (file
+    (let ((buf (find-file-noselect file)))
+      (my/display-buffer-in-main-window buf nil))
+    (my/delete-dirvish-side-window))))
+
+(defun my/dirvish-smart-enter ()
+  "Keyboard version."
+  (interactive)
+  (my/dirvish-open-entry (dired-get-filename nil t)))
+
+(defun my/dirvish-smart-mouse (event)
+  "Mouse version."
+  (interactive "e")
+  (let* ((posn (event-start event))
+         (win (posn-window posn)))
+    (when (window-live-p win)
+      (with-current-buffer (window-buffer win)
+        (goto-char (posn-point posn))
+        (my/dirvish-open-entry (dired-get-filename nil t))))))
+
+(defun my/dirvish-smart-space ()
+  "Toggle subtree if on a folder, do nothing on a file."
+  (interactive)
+  (let ((file (dired-get-filename nil t)))
+    (when (and file (file-directory-p file))
+      (dirvish-subtree-toggle))))
+
 
 (provide 'init/tools)
 ;;; tools.el ends here

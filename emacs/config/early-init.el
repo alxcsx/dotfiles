@@ -43,7 +43,10 @@
 (push '(background-color . "#181818") default-frame-alist)
 (push '(foreground-color . "#ffffff") default-frame-alist)
 (push '(font . "JetBrains Mono-14") default-frame-alist)
-(setq-default mode-line-format nil) ;;Hide the modeline because it was flashing
+(push '(background-mode . dark) default-frame-alist)
+
+;; Prevent theme flashing during startup
+(setq inhibit-splash-screen t)
 
 (set-selection-coding-system 'utf-8)
 (prefer-coding-system 'utf-8)

@@ -20,6 +20,7 @@
 ;; Core:
 (require 'init/elpaca)
 (require 'init/core)
+
 ;; Tooling:
 (require 'init/ui)
 (require 'init/completion)
