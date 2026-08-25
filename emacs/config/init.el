@@ -40,6 +40,7 @@
 ;; Extra:
 (require 'extra/terminal)
 (require 'extra/git)
+(require 'extra/ai)
 
 
 (setq debug-on-error nil)
