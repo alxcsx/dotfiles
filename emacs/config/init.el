@@ -39,6 +39,8 @@
 
 ;; Extra:
 (require 'extra/terminal)
+(require 'extra/git)
+
 
 (setq debug-on-error nil)
 ;;; init.el ends here
