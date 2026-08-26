@@ -1,4 +1,4 @@
-;;; git.el -- --*- lexical-binding: t; -*-
+;;; git.el --- Git configuration -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;;; Code:
 

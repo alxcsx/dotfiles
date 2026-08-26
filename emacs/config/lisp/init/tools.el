@@ -1,4 +1,4 @@
-;;; tools.el -- --*- lexical-binding: t; -*-
+;;; tools.el --- Tools and Utilities -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
 
@@ -21,14 +21,20 @@
 
 ;;; Magit
 (use-package transient)
-(setq vc-handled-backends '(Git)) ;; Ignore other backends
+
+(use-package vc
+  :ensure nil
+  :custom
+  (vc-handled-backends '(Git))) ; Ignore other backends
+
 (use-package magit
   :after transient
   :bind
   (("C-x g" . magit-status)
    ("C-x M-g" . magit-dispatch))
   :config
-  (when (featurep 'nerd-icons) (setq magit-format-file-function #'magit-format-file-nerd-icons))
+  (defvar magit-format-file-function)
+  (when (featurep 'nerd-icons) (setq magit-format-file-function 'magit-format-file-nerd-icons))
   :custom
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
@@ -36,8 +42,12 @@
 ;; allow passphrase prompts inside of emacs instead of external popups.
 (use-package pinentry
   :init
-  (setq epa-pinentry-mode 'loopback)
   (pinentry-start))
+
+(use-package epa
+  :ensure nil
+  :custom
+  (epa-pinetry-mode 'loopback))
 
 ;; Highlight symbols
 (use-package idle-highlight-mode
@@ -120,8 +130,12 @@
    ("<S-return>"  . dired-find-file)))
 
 ;; Update Files when they change on disk
-(global-auto-revert-mode 1)
-(setq global-auto-revert-non-file-buffers t)
+(use-package autorevert
+  :ensure nil
+  :custom
+  (global-auto-revert-non-file-buffers t)
+  :config
+  (global-auto-revert-mode 1))
 
 ;; Remember cursor position across sessions
 (save-place-mode 1)
@@ -139,13 +153,6 @@
 
 ;; Helpers
 
-(defun my/project-info ()
-  "Print the current project root, or warn if not in a project."
-  (interactive)
-  (if-let ((proj (project-current)))
-      (message "Current project root: %s" (project-root proj))
-    (message "Not in a recognized project!")))
-
 (defun my/dirvish-side-windows ()
   "Return Dirvish side tree windows in the current frame."
   (seq-filter
@@ -159,7 +166,7 @@
   "Toggle Dirvish side tree globally."
   (interactive)
   (require 'dirvish nil t)
-  (if-let ((wins (my/dirvish-side-windows)))
+  (if-let* ((wins (my/dirvish-side-windows)))
       (dolist (win wins)
         (when (window-deletable-p win)
           (delete-window win)))
@@ -198,12 +205,12 @@
 
 (defun my/delete-dirvish-side-window ()
   "Delete the Dirvish side tree window if it exists."
-  (when-let ((win (seq-find
-                   (lambda (w)
-                     (and (window-parameter w 'window-side)
-                          (with-current-buffer (window-buffer w)
-                            (derived-mode-p 'dired-mode))))
-                   (window-list))))
+  (when-let* ((win (seq-find
+                    (lambda (w)
+                      (and (window-parameter w 'window-side)
+                           (with-current-buffer (window-buffer w)
+                             (derived-mode-p 'dired-mode))))
+                    (window-list))))
     (when (window-deletable-p win)
       (delete-window win))))
 
