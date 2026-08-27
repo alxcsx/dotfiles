@@ -105,14 +105,7 @@
 
 ;; Theme
 
-(use-package gruber-darker-theme
-  :demand t
-  :config
-  (load-theme 'gruber-darker t)
-  (dolist (theme (remq 'gruber-darker custom-enabled-themes))
-    (disable-theme theme))
-  (my/ui-refresh-theme-faces))
-
+(load-theme 'gruber-darker t)
 
 ;; Refresh correctly for emacsclient frames
 
