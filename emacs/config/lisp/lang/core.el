@@ -8,7 +8,7 @@
 (use-package treesit
   :ensure nil
   :custom
-  (treesit-font-lock-level 3)
+  (treesit-font-lock-level 4)
   :config ;; Using tree-sitter mode for some simple common langs
   (add-to-list 'major-mode-remap-alist '(json-mode . json-ts-mode))
   (add-to-list 'major-mode-remap-alist '(yaml-mode . yaml-ts-mode)))
