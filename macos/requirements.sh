@@ -8,21 +8,22 @@ if false; then
 fi
 
 assert [ "$OS" = "darwin" ] -- \
-  "Not on MACOS" \
-  "This Module Only Works on Darwin Machines"
+         "Not on MACOS" \
+         "This Module Only Works on Darwin Machines"
 
-step "Install Xcode Command Line Tools" \
-  xcode-select -p >/dev/null 2>&1 || sudo xcode-select --install
+step -I \
+     --skip-if 'xcode-select -p >/dev/null 2>&1'\
+     "Install Xcode Command Line Tools" \
+     sudo xcode-select --install
 
 # --- Ricing ---
 require_pkgs \
-  FelixKratz/formulae/sketchybar \
   FelixKratz/formulae/borders \
-  asmvik/formulae/yabai \
   fastfetch \
   yqrashawn/goku/goku \
+  cask:nikitabobko/tap/aerospace \
   cask:karabiner-elements \
-  cask:abue-ammar/tinycast/tinycast \
+  cask:sol \
   cask:zen-browser \
   cask:iina \
   cask:pearcleaner \
@@ -30,3 +31,6 @@ require_pkgs \
   cask:font-hack-nerd-font \
   cask:font-jetbrains-mono-nerd-font \
   cask:font-roboto-mono-nerd-font
+
+
+require_custom -c "aerospace-swipe" -- run_remote_script https://raw.githubusercontent.com/acsandmann/aerospace-swipe/main/install.sh
