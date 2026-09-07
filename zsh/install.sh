@@ -20,14 +20,12 @@ ZSH_PATH=$(grep -m 1 -E '/zsh$' /etc/shells)
 assert [ -n "$ZSH_PATH" ] -- "ZSH path not found in /etc/shells" "Ensure ZSH is installed"
 
 step \
-  -b \
-  --skip-if 'grep -q "export ZDOTDIR=" /etc/zshenv && [[ "$ZDOTDIR" == "$ZSH_DEST" ]]' \
-  "Configure global zsh to use XDG standard" \
-  sudo tee -a "$ZSHENV_PATH" >>/dev/null <<-SHELL
-		    # Custom Zsh directory configuration
-		    export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-		    export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
-	SHELL
+  --skip-if '[[ -f "$ZSHENV_PATH" ]] && grep -qs "export ZDOTDIR=" "$ZSHENV_PATH"' \
+  "Configure global zsh ($ZSHENV_PATH) to use XDG standard" \
+  bash -c "printf '%s\n' \
+    '# Custom Zsh directory configuration' \
+    'export XDG_CONFIG_HOME=\"\${XDG_CONFIG_HOME:-\$HOME/.config}\"' \
+    'export ZDOTDIR=\"\$XDG_CONFIG_HOME/zsh\"' | sudo tee -a '$ZSHENV_PATH' > /dev/null"
 
 step "Create XDG directories" mkdir -p "$ZSH_DEST" "$XDG_CACHE_HOME/zsh" "$XDG_STATE_HOME/zsh"
 
