@@ -16,7 +16,7 @@ setopt AUTOCD
 setopt NOBEEP
 setopt NUMERIC_GLOB_SORT
 
-# --- ZOXIDE 
+# --- ZOXIDE
 eval "$(zoxide init zsh)"
 
 # --- AUTOCOMPLETE
@@ -42,18 +42,6 @@ source "$ZDOTDIR/modules/bindings.zsh"
 source "$ZDOTDIR/modules/plugins.zsh"
 source "$ZDOTDIR/modules/prompt.zsh"
 
-# --- SPECIAL MODULES 
+# --- SPECIAL MODULES
 # changes that aren't tracked in git
-[ -f "$ZDOTDIR/.zshrc.local" ] && source "$ZDOTDIR/.zshrc.local"  
-# >>> dotfiles kitty module >>>
-# Injected by dotfiles 'kitty' module
-source "/Users/alexcs/.config/zsh/.dotsh/kitty.sh"
-# <<< dotfiles kitty module <<<
-# >>> dotfiles dev module >>>
-# Injected by dotfiles 'dev' module
-source "/Users/alexcs/.config/zsh/.dotsh/dev.sh"
-# <<< dotfiles dev module <<<
-# >>> dotfiles MACOS module >>>
-# Injected by dotfiles 'MACOS' module
-source "/Users/alexcs/.config/zsh/.dotsh/MACOS.sh"
-# <<< dotfiles MACOS module <<<
+[ -f "$ZDOTDIR/.zshrc.local" ] && source "$ZDOTDIR/.zshrc.local"
