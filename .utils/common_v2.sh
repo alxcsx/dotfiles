@@ -180,7 +180,7 @@ run_step() {
       local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
       local backup_path="$state_dir/dotfiles/backups${abs_target}"
       mkdir -p "$(dirname "$backup_path")"
-      mv "$target_file" "$backup_path"
+      cp "$target_file" "$backup_path"
       printfln "${BLUE}[BACKUP]${NC} Saved ${YELLOW}${target_file}${NC} to .backups/"
     fi
   fi

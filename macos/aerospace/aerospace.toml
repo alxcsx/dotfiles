@@ -1,0 +1,82 @@
+# ~/.aerospace.toml
+
+config-version = 2
+start-at-login = true
+auto-reload-config = false
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+automatically-unhide-macos-hidden-apps = true
+
+accordion-padding = 30
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Truncated to 1-6 to match your exact workspace usage
+persistent-workspaces = ["1", "2", "3", "4", "5", "6"]
+
+# Consolidated Gaps Table
+[gaps]
+inner.horizontal = 10
+inner.vertical =   5
+outer.left =       15
+outer.bottom =     10
+outer.top =        8
+outer.right =      15
+
+[mode.main.binding]
+
+# ==========================================================
+# EMACS SAFE BINDINGS
+# Navigation uses Arrows. States use Cmd+Option.
+# ==========================================================
+
+# Focus navigation (Option + Arrows)
+alt-left = 'focus left'
+alt-down = 'focus down'
+alt-up = 'focus up'
+alt-right = 'focus right'
+
+# Move / Swap windows (Option + Shift + Arrows)
+alt-shift-left = 'move left'
+alt-shift-down = 'move down'
+alt-shift-up = 'move up'
+alt-shift-right = 'move right'
+
+# Window States (Option + Cmd avoids M-f, M-v, M-/ collisions)
+alt-cmd-f = 'fullscreen'
+alt-cmd-v = 'layout floating tiling'
+alt-cmd-slash = 'layout tiles horizontal vertical'
+alt-cmd-comma = 'layout accordion horizontal vertical'
+
+# Workspaces: Focus (Option + 1..6)
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+
+# Workspaces: Move window to workspace (Option + Shift + 1..6)
+alt-shift-1 = 'move-node-to-workspace 1'
+alt-shift-2 = 'move-node-to-workspace 2'
+alt-shift-3 = 'move-node-to-workspace 3'
+alt-shift-4 = 'move-node-to-workspace 4'
+alt-shift-5 = 'move-node-to-workspace 5'
+alt-shift-6 = 'move-node-to-workspace 6'
+
+alt-tab = 'workspace-back-and-forth'
+alt-shift-semicolon = 'mode service'
+
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+
+# Join windows (using arrow keys to stay consistent)
+alt-shift-left = ['join-with left', 'mode main']
+alt-shift-down = ['join-with down', 'mode main']
+alt-shift-up = ['join-with up', 'mode main']
+alt-shift-right = ['join-with right', 'mode main']

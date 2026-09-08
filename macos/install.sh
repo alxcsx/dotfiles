@@ -11,7 +11,7 @@ assert [ "$OS" = "darwin" ] -- \
   "Not on MACOS" \
   "This Module Only Works on Darwin Machines"
 
-
+GOKU_EDN_CONFIG_FILE="$XDG_CONFIG_HOME/karabiner/karabiner.edn"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 # - Core Defaults
 
@@ -20,11 +20,11 @@ macos_defaults "com.apple.loginwindow" \
   "TALLogoutSavesState"             "bool" "false"
 
 macos_defaults "com.apple.dock" \
-  "autohide-time-modifier"          "float" "1" \
   "autohide"                        "bool"  "true" \
-  "autohide-delay"                  "float" "1000" \
+  "autohide-delay"                  "float" "0" \
+  "autohide-time-modifier"          "float" "0.15" \
   "no-bouncing"                     "bool"  "true" \
-  "tilesize"                        "int"   "16" \
+  "tilesize"                        "int"   "32" \
   "static-only"                     "bool"  "true" \
   "show-recents"                    "bool"  "false" \
   "showhidden"                      "bool"  "true" \
@@ -39,16 +39,16 @@ macos_defaults "com.apple.finder" \
   "CreateDesktop"                   "bool"  "false"
 
 macos_defaults "NSGlobalDomain" \
-  "_HIHideMenuBar"                  "bool"  "true" \
-  "AppleShowAllExtensions"          "bool"  "true" \
-  "NSAutomaticWindowAnimationsEnabled" "bool" "false"
+               "_HIHideMenuBar"                     "bool"  "false" \
+               "AppleShowAllExtensions"             "bool"  "true" \
+               "NSAutomaticWindowAnimationsEnabled" "bool"  "false"
 
 macos_defaults "com.apple.desktopservices" \
   "DSDontWriteNetworkStores"        "bool"  "true"
 
 macos_defaults "com.apple.Terminal" \
   "StringEncodings"                 "array" "4"
-
+
 macos_defaults "com.apple.WindowManager" \
   "EnableStandardClickToShowDesktop" "bool" "false" \
   "StandardHideWidgets"              "bool" "true" \
@@ -62,50 +62,42 @@ macos_defaults "com.colliderli.iina" \
   "AppleMenuBarVisibleInFullscreen" "bool"  "false" \
   "iinaEnablePluginSystem"          "bool"  "true"
 
+step "Disable Window Recover"  defaults write -g NSQuitAlwaysKeepsWindows -bool false
+
 step "Restart affected macOS system services" bash -c 'killall cfprefsd Finder Dock WindowManager SystemUIServer Itsycal 2>/dev/null || true'
 
 step --run-if '[ "$(nvram StartupMute 2>/dev/null | awk "{print \$2}")" != "%01" ]' -b \
   "Mute macOS Startup Sound" \
   sudo nvram StartupMute=%01
 
-step "Setup Config Directories" \
-  mkdir -p "$CONFIG_DIR/sketchybar" "$CONFIG_DIR/borders" "$CONFIG_DIR/yabai" "$CONFIG_DIR/karabiner"
+step --skip-if '[ -f "$HOME/.hushlogin" ]' \
+  "Suppress macOS last login message" \
+  touch "$HOME/.hushlogin"
 
-link_dir_content "$MODULE_DIR/sketchybar/plugins" "$CONFIG_DIR/sketchybar/plugins"
-link_file "$MODULE_DIR/sketchybar/sketchybarrc" "$CONFIG_DIR/sketchybar/sketchybarrc"
+step "Setup Config Directories" \
+  mkdir -p "$CONFIG_DIR/borders" "$CONFIG_DIR/aerospace" "$CONFIG_DIR/karabiner"
+
 link_file "$MODULE_DIR/borders/bordersrc" "$CONFIG_DIR/borders/bordersrc"
+link_file "$MODULE_DIR/aerospace/aerospace.toml" "$CONFIG_DIR/aerospace/aerospace.toml"
+
+step \
+  --skip-if '[ ! -f "$HOME/.aerospace.toml" ]' \
+  "Remove auto-generated AeroSpace config to enforce XDG path" \
+  rm -f "$HOME/.aerospace.toml"
 
 step "Make Scripts Executable" \
-     chmod +x "$CONFIG_DIR/sketchybar/sketchybarrc"\
-     "$CONFIG_DIR/borders/bordersrc"\
-     "$CONFIG_DIR/sketchybar/plugins/"*.sh
-
+     chmod +x "$CONFIG_DIR/borders/bordersrc"
 
 step "Start Visual Presentation Services" bash -c '
-  brew services restart sketchybar
   brew services restart borders
 '
 
-## - Yabai
-YABAI_PATH="$(brew --prefix)/bin/yabai"
-SUDOERS_FILE="/private/etc/sudoers.d/yabai"
-HASH_CACHE_FILE="$CONFIG_DIR/yabai/last_sa_hash"
-CURRENT_HASH="$(shasum -a 256 "$YABAI_PATH" 2>/dev/null | awk '{print $1}')"
-
-step --run-if '[ ! -f "'"$HASH_CACHE_FILE"'" ] || [ "$(cat "'"$HASH_CACHE_FILE"'")" != "'"$CURRENT_HASH"'" ]' -b \
-  "Configure Yabai Sudoers & Scripting Addition" bash -c '
-    YABAI_LINE="$(whoami) ALL=(root) NOPASSWD: sha256:'"$CURRENT_HASH"' '"$YABAI_PATH"' --load-sa"
-    echo "$YABAI_LINE" | sudo tee "'"$SUDOERS_FILE"'" >/dev/null
-    sudo chmod 440 "'"$SUDOERS_FILE"'"
-    echo "'"$CURRENT_HASH"'" > "'"$HASH_CACHE_FILE"'"
-'
-
-link_file "$MODULE_DIR/yabai/yabairc" "$CONFIG_DIR/yabai/yabairc"
-
-step "Start Yabai Service" \
-  yabai --start-service
-
 ## - Karabiner
+step \
+  --skip-if "[ -f \"$CONFIG_DIR/karabiner/karabiner.json\" ]" \
+  "Initialize minimal karabiner.json profile" \
+  bash -c "echo '{\"profiles\": [{\"name\": \"Default profile\"}]}' > \"$CONFIG_DIR/karabiner/karabiner.json\""
+
 link_file "$MODULE_DIR/karabiner/karabiner.edn" "$CONFIG_DIR/karabiner/karabiner.edn"
 step "Compile Karabiner Config via Goku" goku
 
