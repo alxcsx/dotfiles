@@ -41,7 +41,7 @@
 (require 'extra/terminal)
 (require 'extra/git)
 (require 'extra/ai)
-
+(require 'extra/misc)
 
 (setq debug-on-error nil)
 ;;; init.el ends here
