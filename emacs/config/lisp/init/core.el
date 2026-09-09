@@ -5,10 +5,11 @@
 ;; Load Environment Variables
 (use-package exec-path-from-shell
   :if (memq window-system '(mac ns x pgtk))
-  :defer 0.1
+  :demand t
+  :custom
+  (exec-path-from-shell-arguments '("-l" "-i"))
+  (exec-path-from-shell-variables '("PATH" "MANPATH" "MISE_SHELL" "MISE_DATA_DIR"))
   :config
-  (setq exec-path-from-shell-variables '("PATH" "MANPATH"))
-  (setq exec-path-from-shell-arguments '("-l"))
   (exec-path-from-shell-initialize))
 
 (use-package envrc
