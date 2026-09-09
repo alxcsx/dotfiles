@@ -33,12 +33,6 @@ outer.right =      15
 # Navigation uses Arrows. States use Cmd+Option.
 # ==========================================================
 
-# Focus navigation (Option + Arrows)
-alt-left = 'focus left'
-alt-down = 'focus down'
-alt-up = 'focus up'
-alt-right = 'focus right'
-
 # Move / Swap windows (Option + Shift + Arrows)
 alt-shift-left = 'move left'
 alt-shift-down = 'move down'
