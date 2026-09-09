@@ -410,11 +410,7 @@ get_rc_file() {
     fi
     ;;
   zsh)
-    if is_mod_installed "zsh"; then
       rc_file="${ZDOTDIR:-$HOME/.config/zsh}/.zshrc.local"
-    else
-      rc_file="${ZDOTDIR:-$HOME}/.zshrc"
-    fi
     ;;
   fish)
     rc_file="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
