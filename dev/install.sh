@@ -4,28 +4,28 @@
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
-  source "../dot.sh"
+	source "../dot.sh"
 fi
 
 # Helpers:
 mise_install_step() {
-  step "install $1@$2 through mise" mise use --global "$1@$2" || {
-    printfln "${RED}[!]${NC} Failed to install $1"
-    return 1
-  }
+	step "install $1@$2 through mise" mise use --global "$1@$2" || {
+		printfln "${RED}[!]${NC} Failed to install $1"
+		return 1
+	}
 }
 
 step --run-if '[ -z "$(git config --global user.name)" ]' -I \
-  "Set default Git name" \
-  bash -c 'read -r -p "  -> Enter your full name for Git: " git_name && git config --global user.name "$git_name"'
+	"Set default Git name" \
+	bash -c 'read -r -p "  -> Enter your full name for Git: " git_name && git config --global user.name "$git_name"'
 
 step --run-if '[ -z "$(git config --global user.email)" ]' -I \
-  "Set global Git email" \
-  bash -c 'read -r -p "  -> Enter your email for Git: " git_email && git config --global user.email "$git_email"'
+	"Set global Git email" \
+	bash -c 'read -r -p "  -> Enter your email for Git: " git_email && git config --global user.email "$git_email"'
 
 step --run-if '[ -f "$HOME/.gitconfig" ]' \
-  "Move Existing Git Config to $HOME/.config/git" \
-  bash -c 'mkdir -p "$HOME/.config/git" && mv "$HOME/.gitconfig" "$HOME/.config/git/config"'
+	"Move Existing Git Config to $HOME/.config/git" \
+	bash -c 'mkdir -p "$HOME/.config/git" && mv "$HOME/.gitconfig" "$HOME/.config/git/config"'
 
 # Python
 mise_install_step python latest
@@ -46,6 +46,11 @@ mise_install_step elixir-ls latest
 # OTHERS
 mise_install_step rust latest
 mise_install_step just latest
+mise_install_step tilt latest
+# KUBERNETES
+mise_install_step kubectl latest
+mise_install_step minikube latest
+mise_install_step kustomize latest
 # LUA
 mise_install_step lua latest
 mise_install_step lua-language-server latest
@@ -53,12 +58,20 @@ mise_install_step lua-language-server latest
 mise_install_step shellcheck latest
 mise_install_step shfmt latest
 
+if [[ "$DISTRO" == "macos" ]]; then
+	if ! podman machine list | grep -q "podman-machine-default"; then
+		step "Init Podman Machine" mise exec podman -- podman machine init
+	fi
+else
+	step "Enable Podman Socket" systemctl --user enable --now podman.socket
+fi
+
 # Configure Node
 step "Enable CorePack for node" mise exec node -- corepack enable
 
 # Inject Mise and direnv into Shell:
 append_rc_step "dev" "$(
-  cat <<SHELL
+	cat <<SHELL
 $(cat "$MODULE_DIR/xdg_env.sh")
 
 # Activate Mise

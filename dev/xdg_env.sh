@@ -15,7 +15,6 @@ export NODE_REPL_HISTORY="$XDG_DATA_HOME/node_repl_history"
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
 export BUN_INSTALL="$XDG_DATA_HOME/bun"
 
-
 # --- Elixir / Erlang (.hex) ---
 export HEX_HOME="$XDG_DATA_HOME/hex"
 export MIX_HOME="$XDG_DATA_HOME/mix"
@@ -37,6 +36,18 @@ export PYTHONUSERBASE="$XDG_DATA_HOME/python"
 export GOPATH="$XDG_DATA_HOME/go"
 # --- Other Tools ---
 export UV_PYTHON_PREFERENCE="system"
-export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
 export AWS_SHARED_CREDENTIALS_FILE="$XDG_CONFIG_HOME/aws/credentials"
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME/aws/config"
+# --- Containers --
+export MINIKUBE_HOME="$XDG_DATA_HOME/minikube"
+export KUBECONFIG="$XDG_CONFIG_HOME/kube/config"
+export KUBECACHEDIR="$XDG_CACHE_HOME/kube"
+export KUSTOMIZE_PLUGIN_HOME="$XDG_CONFIG_HOME/kustomize/plugin"
+export MACHINE_STORAGE_PATH="$XDG_DATA_HOME/containers/podman/machine"
+export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
+
+if [ "$(uname -s)" = "Darwin" ]; then
+	export DOCKER_HOST="unix://$HOME/.local/share/containers/podman/machine/podman-machine-default/podman.sock"
+else
+	export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
+fi
