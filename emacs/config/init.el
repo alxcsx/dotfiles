@@ -36,6 +36,7 @@
 (require 'lang/godot)
 (require 'lang/js-ts)
 (require 'lang/csharp)
+(require 'lang/build)
 
 ;; Extra:
 (require 'extra/terminal)
