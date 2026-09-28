@@ -130,7 +130,7 @@ require_pkgs() {
 
   # Dry-Run Intercept
   if [[ "$DOT_DRY_RUN" == "1" ]]; then
-    run "Install" true
+    printfln "\t${YELLOW}[DRY-RUN]${NC} Would install: ${descriptions[*]}"
     return 0
   fi
 
