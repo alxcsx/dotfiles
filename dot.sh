@@ -6,6 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DOTFILES_DIR="$SCRIPT_DIR"
 
+# LSP hint only — never executed, keeps bash-language-server aware of the helpers
 if false; then
   source "./.utils/common_v2.sh"
   source "./.utils/packages_v2.sh"
@@ -33,10 +34,6 @@ while [[ $# -gt 0 ]]; do
     export DOT_DRY_RUN=1
     shift 1
     ;;
-  --halt)
-    export DOT_HALT_ON_ERROR=1
-    shift 1
-    ;;
   --no-halt)
     export DOT_HALT_ON_ERROR=0
     shift 1
@@ -58,7 +55,7 @@ done
 
 if [[ -z "$DOT_ACTION" || ("$DOT_ACTION" != "status" && ${#MODULES[@]} -eq 0) ]]; then
   printfln "\t${RED}[!]${NC} Usage: dot.sh [FLAGS] <install|status> <module1> [module2...]"
-  printfln "\tFlags: -v/--verbose, --dry-run, --halt, --no-halt\n"
+  printfln "\tFlags: -v/--verbose, --dry-run, --no-halt\n"
   exit 1
 fi
 
@@ -88,7 +85,9 @@ install)
       export DOT_STEP_COUNT=0
       printfln "${BLUE}[i]${NC} Verifying Module Requirements:"
       [[ -f "$MODULE_DIR/requirements.sh" ]] && source "$MODULE_DIR/requirements.sh"
-      source "$MODULE_DIR/install.sh"
+      if source "$MODULE_DIR/install.sh" && [[ "$DOT_DRY_RUN" == "0" ]]; then
+        update_state "$module" installed "$(get_git_hash)"
+      fi
     else
       printfln "\n${YELLOW}[!]${NC} Skipping '$module': No install.sh script found."
     fi

@@ -3,6 +3,7 @@
 # desc:		Install Zsh configuration and set as default shell
 # author:	Alex Candido <github:alxcsx>
 
+# LSP hint only — never executed, resolves dot.sh helpers for bash-language-server
 if false; then
   source "../dot.sh"
 fi

@@ -382,6 +382,24 @@ macos_defaults() {
   done
 }
 
+## State (from common_v1)
+
+# Get short git commit hash of the dotfiles repo
+get_git_hash() {
+  (cd "$DOTFILES_DIR" && git rev-parse --short HEAD 2>/dev/null) || echo "unknown"
+}
+
+# Update state file: module|status|version
+update_state() {
+  local module=$1
+  local status=$2
+  local version=$3
+  # Remove old entry if exists, then append new one
+  grep -v "^${module}|" "$STATE_FILE" >"$STATE_FILE.tmp" 2>/dev/null
+  echo "${module}|${status}|${version}" >>"$STATE_FILE.tmp"
+  mv "$STATE_FILE.tmp" "$STATE_FILE"
+}
+
 ## RC (from common_v1)
 
 is_mod_installed() {
