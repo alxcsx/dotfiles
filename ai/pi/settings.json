@@ -1,0 +1,34 @@
+{
+  "packages": [
+    "git:github.com/jonjonrankin/pi-caveman",
+    "npm:pi-tree-sitter",
+    "npm:@d3ara1n/pi-model-roles",
+    "npm:@anierbeck/pi-model-dynamic-router",
+    "npm:pi-agentic-compaction",
+    "npm:pi-context-prune",
+    "npm:pi-web-access",
+    "npm:pi-plan",
+    "npm:pi-ponytail",
+    "npm:pi-mcp-adapter"
+  ],
+  "lastChangelogVersion": "0.87.1",
+  "theme": "dark",
+  "modelRoles": {
+    "roles": {
+      "smol": {
+        "model": "phi35"
+      },
+      "utility": {
+        "model": "qwen3.5:9B"
+      },
+      "default": {
+        "model": "dynamic"
+      },
+      "slow": {
+        "model": "dynamic"
+      }
+    }
+  },
+  "tuiMode": "fullscreen",
+  "hideThinkingBlock": true
+}

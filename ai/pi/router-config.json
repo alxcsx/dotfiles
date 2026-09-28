@@ -1,0 +1,18 @@
+{
+    "model_groups": {
+        "standard": {
+            "description": "routine flaw-check / smaller passes",
+            "method": "min_cost",
+            "models": ["opencode-go/glm-5.3-flash", "opencode-go/glm-5.3"]
+        },
+        "heavy": {
+            "description": "deep architecture review, refactor planning",
+            "method": "best",
+            "min_gdpval": 600,
+            "models": ["opencode-go/deepseek-v4-pro", "opencode-go/glm-5.3"]
+        }
+    },
+    "classifier": {
+        "allowStaticFallback": true
+    }
+}

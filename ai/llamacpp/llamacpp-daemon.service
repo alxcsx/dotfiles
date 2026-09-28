@@ -1,0 +1,19 @@
+[Unit]
+Description=Llama.cpp Local AI Background Router
+After=network.target
+
+[Service]
+Type=simple
+Environment=LLAMA_LOG_LEVEL=info
+Environment=HF_HOME=%h/.config/llamacpp/models
+
+ExecStart=%h/.config/llamacpp/llama-router.sh
+
+KillMode=mixed
+TimeoutStopSec=4s
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
