@@ -33,6 +33,9 @@ mise_install_step uv latest
 mise_install_step ruff latest
 # DOTNET
 mise_install_step dotnet 10
+step --skip-if 'command -v csharp-ls >/dev/null 2>&1' \
+  "Install csharp-ls language server" \
+  dotnet tool install -g csharp-ls
 # JVM
 mise_install_step java lts
 # JS

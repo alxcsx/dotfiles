@@ -6,6 +6,7 @@ export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export DOTNET_NOLOGO=1
 export DOTNET_CLI_HOME="$XDG_DATA_HOME/dotnet"
+export PATH="$DOTNET_CLI_HOME/.dotnet/tools:$PATH"
 
 # --- Node (.npm) ---
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
