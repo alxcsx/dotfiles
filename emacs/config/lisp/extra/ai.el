@@ -4,9 +4,7 @@
 
 
 (use-package copilot
-  :vc (:url "https://github.com/copilot-emacs/copilot.el"
-            :rev :newest
-            :branch "main")
+  :ensure (:host github :repo "copilot-emacs/copilot.el" :files ("*.el" "dist"))
   :hook (prog-mode . copilot-mode)
   :bind (:map copilot-completion-map
               ("<tab>" . copilot-accept-completion)

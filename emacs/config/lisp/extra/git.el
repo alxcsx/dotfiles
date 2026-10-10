@@ -6,7 +6,7 @@
 (use-package git-gutter
   :hook (prog-mode . git-gutter-mode)
   :config
-  (setq git-gutter:update-interval 0.1))
+  (setq git-gutter:update-interval 10))
 
 (use-package git-gutter-fringe
   :config

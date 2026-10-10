@@ -4,11 +4,10 @@
 
 
 ;;; Keybinding Discoverability
-(if (fboundp 'which-key-mode)
-    (which-key-mode 1)
-  (use-package which-key
-    :init
-    (which-key-mode 1)))
+(use-package which-key
+  :ensure nil
+  :init
+  (which-key-mode 1))
 
 ;;; Better Describe
 (use-package helpful
@@ -47,7 +46,7 @@
 (use-package epa
   :ensure nil
   :custom
-  (epa-pinetry-mode 'loopback))
+  (epa-pinentry-mode 'loopback))
 
 ;; Highlight symbols
 (use-package idle-highlight-mode

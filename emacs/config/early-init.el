@@ -31,8 +31,7 @@
 (push '(tool-bar-lines . 0) default-frame-alist)
 (push '(vertical-scroll-bars . nil) default-frame-alist)
 ;; Mouse Scroll
-(setq redisplay-dont-pause t
-      fast-but-imprecise-scrolling t
+(setq fast-but-imprecise-scrolling t
       scroll-conservatively 101
       scroll-margin 0)
 ;; Performance Optimizations

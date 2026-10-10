@@ -39,19 +39,24 @@
 (defconst my/ui-font-italic "Victor Mono")
 (defconst my/ui-font-height 140)
 
-(set-face-attribute 'default nil
-                    :family my/ui-font-mono
-                    :height my/ui-font-height
-                    :weight 'regular)
+(defun my/ui-apply-fonts (&optional frame)
+  "Apply default fonts to FRAME (or globally if FRAME is nil)."
+  (when (or (null frame) (display-graphic-p frame))
+    (set-face-attribute 'default frame
+                        :family my/ui-font-mono
+                        :height my/ui-font-height
+                        :weight 'regular)
+    (set-face-attribute 'bold frame
+                        :family my/ui-font-mono
+                        :weight 'medium)
+    (set-face-attribute 'italic frame
+                        :family my/ui-font-italic
+                        :weight 'semilight
+                        :slant 'italic)))
 
-(set-face-attribute 'bold nil
-                    :family my/ui-font-mono
-                    :weight 'medium)
-
-(set-face-attribute 'italic nil
-                    :family my/ui-font-italic
-                    :weight 'semilight
-                    :slant 'italic)
+(if (daemonp)
+    (add-hook 'after-make-frame-functions #'my/ui-apply-fonts)
+  (my/ui-apply-fonts))
 
 ;; Theme
 (defun my/ui--safe-color (color &optional fallback)
@@ -110,15 +115,13 @@
 ;; Refresh correctly for emacsclient frames
 
 (defun my/ui-refresh-client-frame (frame)
-  (when (display-graphic-p frame)
-    (load-theme 'gruber-darker t)
-    (dolist (theme (remq 'gruber-darker custom-enabled-themes))
-      (disable-theme theme))
-    (my/ui-refresh-theme-faces)
-    (remove-hook 'after-make-frame-functions #'my/ui-refresh-client-frame)))
+  "Ensure themes and custom faces render cleanly on newly created client frames."
+  (with-selected-frame frame
+    (when (display-graphic-p frame)
+      (my/ui-apply-fonts frame)
+      (my/ui-refresh-theme-faces))))
 
-(if (daemonp)
-    (add-hook 'after-make-frame-functions #'my/ui-refresh-client-frame))
+(add-hook 'after-make-frame-functions #'my/ui-refresh-client-frame)
 
 ;; Faces
 (defface my/ui-faded-face
@@ -200,9 +203,13 @@
                        'face 'my/ui-pill-face))
     "   "
     (:eval (if (use-region-p)
-               (let ((lines (count-lines (region-beginning) (region-end)))
-                     (chars (- (region-end) (region-beginning))))
-                 (propertize (format "%d:%d" lines chars) 'face 'font-lock-keyword-face))
+               (let* ((beg (region-beginning))
+                      (end (region-end))
+                      (chars (- end beg))
+                      (lines (if (< chars 100000)
+                                 (count-lines beg end)
+                               "+")))
+                 (propertize (format "%s:%d" lines chars) 'face 'font-lock-keyword-face))
              (propertize "%l:%c" 'face 'my/ui-faded-face)))))
 
 (defvar my/modeline-right
@@ -211,12 +218,12 @@
              (propertize "⏺ REC  " 'face '(:inherit warning :weight bold))))
     (:eval (when (and vc-mode (stringp vc-mode))
              (let ((branch (replace-regexp-in-string "^[ -]*[A-Za-z]+[-:]" "" (substring-no-properties vc-mode))))
-               (concat (propertize (if (fboundp 'nerd-icons-octicon)
-                                       (nerd-icons-octicon "git-branch")
-                                     "")
-                                   'face 'my/ui-faded-face)
-                       " "
-                       (propertize branch 'face 'my/ui-faded-face)))))
+                (concat (propertize (if (fboundp 'nerd-icons-octicon)
+                                        (nerd-icons-octicon "git-branch")
+                                      "")
+                                    'face 'my/ui-faded-face)
+                        " "
+                        (propertize branch 'face 'my/ui-faded-face)))))
     " "))
 
 (setq-default mode-line-format
@@ -255,7 +262,6 @@
          (new-win (frame-root-window new-frame)))
     (set-window-buffer new-win buf)
     (select-frame-set-input-focus new-frame)
-    (set-window-dedicated-p new-win t)
     (when (window-deletable-p old-win)
       (delete-window old-win))))
 

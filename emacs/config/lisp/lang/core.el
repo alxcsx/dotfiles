@@ -37,10 +37,7 @@
         ("C-c l d" . eglot-find-declarations)
         ("M-."     . xref-find-definitions)
         ("M-?"     . xref-find-references)
-        ("C-c a" . eglot-code-actions))
-  :config
-  (defun my/eglot-format-on-save ()
-    (add-hook 'before-save-hook #'eglot-format-buffer nil t)))
+        ("C-c a" . eglot-code-actions)))
 
 (setq-default eglot-workspace-configuration '())
 
@@ -68,11 +65,11 @@
         ("C-c l e" . flymake-show-buffer-diagnostics)))
 
 ;; Code Folding
-(use-package hs-minor-mode
+(use-package hideshow
   :ensure nil
   :hook (prog-mode . hs-minor-mode)
   :bind
-  (:map hs-minor-modemap
+  (:map hs-minor-mode-map
         ("C-c TAB" . hs-toggle-hiding)))
 
 

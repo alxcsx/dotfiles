@@ -35,7 +35,7 @@
   :ensure nil
   :bind
   (:map emacs-lisp-mode-map
-        ("C-c C-e" . eval-at-point)
+        ("C-c C-e" . eval-defun)
         ("C-c C-b" . eval-buffer)
         ("C-c C-r" . eval-region)))
 
@@ -46,12 +46,14 @@
 ;; Misc
 
 (defun my/lisp-mode-setup ()
-  "Common settings for all Lisp dialets."
-  (setq-local electric-pair-inhibit-predicate `(lambda (char) (if (char-equal char ?\')
-                                                                  t
-                                                                (electric-pair-default-inhibit char)))))
+  "Common settings for all Lisp dialects."
+  (setq-local fill-column 80)
+  (setq-local electric-pair-inhibit-predicate
+              (lambda (char)
+                (if (char-equal char ?\')
+                    t
+                  (electric-pair-default-inhibit char)))))
 
-(setq-local fill-column 80)
 (add-hook 'lisp-data-mode-hook #'my/lisp-mode-setup)
 
 (provide 'lang/lisp)

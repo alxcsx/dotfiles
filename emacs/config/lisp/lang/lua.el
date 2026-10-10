@@ -11,7 +11,7 @@
   :ensure nil
   :hook (lua-ts-mode . eglot-ensure)
   :custom
-  (lua-indent-level 4)
+  (lua-ts-indent-offset 4)
   :config
   (add-to-list 'treesit-language-source-alist
                '(lua "https://github.com/tree-sitter/tree-sitter-lua")))

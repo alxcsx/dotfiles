@@ -7,7 +7,10 @@
 (defun my/sh-mode-setup ()
   "Automatically make file executable on save if it has a shebang."
   (require 'executable)
-  (add-hook 'after-save-hook #'executable-make-buffer-file-executable-if-script-p nil t))
+  (add-hook 'after-save-hook #'executable-make-buffer-file-executable-if-script-p nil t)
+  ;; Prevent Flymake from spawning duplicate standalone ShellCheck sub-processes
+  ;; since bash-language-server already runs ShellCheck through Eglot.
+  (remove-hook 'flymake-diagnostic-functions #'sh-shellcheck-flymake t))
 
 (use-package sh-script
   :ensure nil
@@ -18,8 +21,10 @@
   :config
   (add-to-list 'treesit-language-source-alist '(bash "https://github.com/tree-sitter/tree-sitter-bash"))
   :hook
-  (bash-ts-mode . eglot-ensure)
-  (bash-ts-mode . my/sh-mode-setup))
+  ((bash-ts-mode . eglot-ensure)
+   (bash-ts-mode . my/sh-mode-setup)
+   (sh-mode      . eglot-ensure)
+   (sh-mode      . my/sh-mode-setup)))
 
 (use-package fish-mode
   :mode "\\.fish\\'"
@@ -29,9 +34,9 @@
 (with-eval-after-load 'eglot
   (my/eglot-merge-workspace-config
    :bashIde
-   '(:backgroundAnalysisMaxFiles 100
-                                 :explainshellEndpoint ""
-                                 :glob "**/*@(.sh|.inc|.bash|.command)")))
+   '(:backgroundAnalysisMaxFiles 0
+     :explainshellEndpoint ""
+     :glob "**/*@(.sh|.inc|.bash|.command)")))
 
 (provide 'lang/sh)
 ;;; sh.el ends here

@@ -11,6 +11,7 @@
 	            tab-width 2)
 
 (use-package editorconfig
+  :ensure nil
   :init
   (editorconfig-mode 1))
 
@@ -44,7 +45,10 @@
   :init
   (global-hl-line-mode 1))
 
-(add-hook 'before-save-hook #'delete-trailing-whitespace)
+;; Clean trailing whitespace on save in code buffers only (protects markdown/text files)
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)))
 
 ;; UX Utilities
 ;; allow repeating of commands:
@@ -55,8 +59,6 @@
   :ensure t
   :init
   (drag-stuff-global-mode 1)
-  :config
-  ;; Custom bindings for M-<up> and M-<down>
   :bind
   ("M-<up>"   . drag-stuff-up)
   ("M-<down>" . drag-stuff-down))

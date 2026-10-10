@@ -19,14 +19,11 @@ projectile-bookmarks.eld
 session*
 .cask
 tramp
-/var
-custom.el
+var/
 .emacs.desktop
 projectile.cache
 /projects
 transient/
 tree-sitter/
 forge-database.sqlite
-var/
 etc/
-custom.el

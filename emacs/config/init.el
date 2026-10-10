@@ -29,14 +29,18 @@
 (require 'init/dashboard)
 
 ;; Language:
+(require 'lang/core)
 (require 'lang/lisp)
 (require 'lang/lua)
 (require 'lang/sh)
 (require 'lang/elixir)
 (require 'lang/godot)
 (require 'lang/js-ts)
-(require 'lang/csharp)
+(require 'lang/dotnet)
+(require 'lang/haskell)
+(require 'lang/java)
 (require 'lang/build)
+(require 'lang/docs)
 
 ;; Extra:
 (require 'extra/terminal)
