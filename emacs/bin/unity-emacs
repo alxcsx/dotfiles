@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ~/.local/bin/unity-emacs
+
+FILE="$1"
+LINE="$2"
+COL="$3"
+
+# Under Wayland with PGTK Emacs, inheriting DISPLAY=:0 from Xwayland apps (like Unity)
+# causes PGTK Emacs to attempt an X11 connection and crash. Prioritize Wayland.
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    unset DISPLAY
+fi
+
+# Clean file:// URI prefix if present
+if [[ "$FILE" =~ ^file://(.*)$ ]]; then
+    FILE="${BASH_REMATCH[1]}"
+fi
+
+# If target is a directory, open directly in dired in a new frame
+if [ -d "$FILE" ]; then
+    exec emacsclient -c -n -a "" --eval "(dired \"$FILE\")"
+fi
+
+# Always create a new graphical window/frame (-c) so it appears on the current workspace
+if [ -n "$LINE" ] && [ -n "$COL" ]; then
+    exec emacsclient -c -n -a "" "+${LINE}:${COL}" "$FILE"
+elif [ -n "$LINE" ]; then
+    exec emacsclient -c -n -a "" "+${LINE}" "$FILE"
+elif [ -n "$FILE" ]; then
+    exec emacsclient -c -n -a "" "$FILE"
+else
+    exec emacsclient -c -a ""
+fi

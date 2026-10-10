@@ -9,21 +9,50 @@
   (dolist (marker '("Assets" "ProjectSettings/ProjectVersion.txt" "*.sln"))
     (add-to-list 'project-vc-extra-root-markers marker)))
 
-(defun my/dotnet-unity-project-p ()
-  "Check whether the current buffer is inside a Unity project."
-  (or (locate-dominating-file default-directory "Assets")
-      (locate-dominating-file default-directory "ProjectSettings/ProjectVersion.txt")))
+(defun my/dotnet-unity-project-p (&optional dir)
+  "Check whether the current buffer or DIR is inside a Unity project."
+  (let ((dir (or dir default-directory)))
+    (and dir
+         (or (locate-dominating-file dir "Assets")
+             (locate-dominating-file dir "ProjectSettings/ProjectVersion.txt")))))
+
+;; Hide Unity .meta files in Dired / Dirvish
+(with-eval-after-load 'dired
+  (require 'dired-x)
+  (defun my/unity-dired-setup ()
+    "Automatically hide .meta files when browsing a Unity project."
+    (when (my/dotnet-unity-project-p)
+      (setq-local dired-omit-files
+                  (concat (or dired-omit-files "\\`\\..*") "\\|\\.meta\\'"))
+      (dired-omit-mode 1)))
+  (add-hook 'dired-mode-hook #'my/unity-dired-setup))
+
+;; Ignore .meta files in project searches for Unity projects
+(with-eval-after-load 'project
+  (defun my/project-unity-ignores (orig-fun project &rest args)
+    (let ((ignores (apply orig-fun project args)))
+      (if (my/dotnet-unity-project-p)
+          (cons "*.meta" ignores)
+        ignores)))
+  (advice-add 'project-ignores :around #'my/project-unity-ignores))
+
+;; Ignore .meta files in file completion when inside a Unity project buffer
+(defun my/unity-ignore-meta-in-completion ()
+  (when (my/dotnet-unity-project-p)
+    (setq-local completion-ignored-extensions
+                (cons ".meta" completion-ignored-extensions))))
+(add-hook 'find-file-hook #'my/unity-ignore-meta-in-completion)
+
 
 (defun my/csharp-lsp-contact (&optional _interactive _project)
   "Determine the LSP contact for C# files, configuring Omnisharp for Unity if needed."
-  (if (my/dotnet-unity-project-p)
-      ;; In Unity projects, ensure OmniSharp loads solutions and references correctly
-      '("omnisharp" "-lsp" "-s" ".")
-    ;; Default C# alternatives: omnisharp or csharp-ls
-    (cond
-     ((executable-find "omnisharp") '("omnisharp" "-lsp"))
-     ((executable-find "OmniSharp") '("OmniSharp" "-lsp"))
-     (t '("csharp-ls")))))
+  (cond
+   ((and (my/dotnet-unity-project-p)
+         (or (executable-find "omnisharp") (executable-find "OmniSharp")))
+    '("omnisharp" "-lsp" "-s" "."))
+   ((executable-find "omnisharp") '("omnisharp" "-lsp"))
+   ((executable-find "OmniSharp") '("OmniSharp" "-lsp"))
+   (t '("csharp-ls"))))
 
 ;; C# configuration
 (use-package csharp-mode

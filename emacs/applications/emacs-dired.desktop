@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Emacs Dired
+GenericName=File Manager
+Comment=Browse directories using Emacs Dired / Dirvish
+Exec=emacs-dired %u
+Terminal=false
+Type=Application
+Icon=emacs
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
