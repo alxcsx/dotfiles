@@ -1,4 +1,4 @@
-;;; build.el --- shell scripting defaults -*- lexical-binding: t; -*-
+;;; build.el --- Build and devOps file configs -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;;; Code:
 

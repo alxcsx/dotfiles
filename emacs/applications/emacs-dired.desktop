@@ -2,7 +2,7 @@
 Name=Emacs Dired
 GenericName=File Manager
 Comment=Browse directories using Emacs Dired / Dirvish
-Exec=emacs-dired %u
+Exec=emacs-dired %f
 Terminal=false
 Type=Application
 Icon=emacs

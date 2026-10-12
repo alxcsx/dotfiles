@@ -28,7 +28,7 @@
   :custom
   (eglot-autoshutdown t)
   (eglot-sync-connect 0)
-  (eglot-events-buffer-size 0)
+  (eglot-events-buffer-config '(:size 0))
   :bind
   (:map eglot-mode-map
         ("C-c l r" . eglot-rename)

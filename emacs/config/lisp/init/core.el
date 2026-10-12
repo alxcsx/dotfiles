@@ -2,31 +2,13 @@
 ;;; Commentary:
 ;;; Code:
 
-;; Mise & Shell Environment Variables
-(defun my/load-mise-env ()
-  "Load mise environment variables and shims into Emacs without an interactive shell."
-  (when-let* ((mise-bin (or (executable-find "mise")
-                            (expand-file-name "~/.local/bin/mise")))
-              (json (ignore-errors
-                      (with-temp-buffer
-                        (when (zerop (call-process mise-bin nil t nil "env" "--json"))
-                          (goto-char (point-min))
-                          (json-parse-buffer :object-type 'alist))))))
-    (dolist (pair json)
-      (let ((var (symbol-name (car pair)))
-            (val (cdr pair)))
-        (setenv var val)
-        (when (string= var "PATH")
-          (setq exec-path (append (parse-colon-path val) (list exec-directory))))))))
-
-(my/load-mise-env)
-
+;; Shell Environment Variables (mise itself is handled per-buffer by mise.el in tools.el)
 (use-package exec-path-from-shell
-  :if (memq window-system '(mac ns x pgtk))
+  :if (or (daemonp) (memq window-system '(mac ns x pgtk)))
   :demand t
   :custom
   (exec-path-from-shell-arguments '("-l"))
-  (exec-path-from-shell-variables '("PATH" "MANPATH" "MISE_SHELL" "MISE_DATA_DIR"))
+  (exec-path-from-shell-variables '("PATH" "MANPATH" "MISE_SHELL" "MISE_DATA_DIR" "DOTNET_ROOT" "DOTNET_CLI_HOME"))
   :config
   (exec-path-from-shell-initialize))
 
@@ -82,50 +64,34 @@
 (setq select-enable-clipboard t
       save-interprogram-paste-before-kill t)
 
+(defun my/clipboard-command (paste)
+  "Return the first available clipboard argv for copying, or pasting if PASTE."
+  (seq-find (lambda (argv) (executable-find (car argv)))
+            (if paste
+                '(("wl-paste" "--no-newline") ("xclip" "-selection" "clipboard" "-o") ("pbpaste"))
+              '(("wl-copy") ("xclip" "-selection" "clipboard") ("pbcopy")))))
+
 (defun my/clipboard-cut (text)
   "Copy TEXT to the system clipboard in GUI and terminal frames."
   (if (display-graphic-p)
       (gui-select-text text)
-    (cond
-     ((executable-find "wl-copy")
-      (let ((process-connection-type nil))
-        (let ((proc (start-process "wl-copy" nil "wl-copy")))
-          (process-send-string proc text)
-          (process-send-eof proc))))
-     ((executable-find "xclip")
-      (let ((process-connection-type nil))
-        (let ((proc (start-process "xclip" nil "xclip" "-selection" "clipboard")))
-          (process-send-string proc text)
-          (process-send-eof proc))))
-     ((executable-find "pbcopy")
-      (let ((process-connection-type nil))
-        (let ((proc (start-process "pbcopy" nil "pbcopy")))
-          (process-send-string proc text)
-          (process-send-eof proc)))))))
+    (when-let* ((argv (my/clipboard-command nil)))
+      (let* ((process-connection-type nil)
+             (proc (apply #'start-process "clipboard" nil argv)))
+        (process-send-string proc text)
+        (process-send-eof proc)))))
 
 (defun my/clipboard-paste ()
   "Paste text from the system clipboard in GUI and terminal frames."
   (if (display-graphic-p)
       (gui-selection-value)
-    (cond
-     ((executable-find "wl-paste")
-      (with-temp-buffer
-        (when (zerop (call-process "wl-paste" nil t nil "--no-newline"))
-          (let ((text (buffer-string)))
-            (unless (string-empty-p text)
-              text)))))
-     ((executable-find "xclip")
-      (with-temp-buffer
-        (when (zerop (call-process "xclip" nil t nil "-selection" "clipboard" "-o"))
-          (let ((text (buffer-string)))
-            (unless (string-empty-p text)
-              text)))))
-     ((executable-find "pbpaste")
-      (with-temp-buffer
-        (when (zerop (call-process "pbpaste" nil t nil))
-          (let ((text (buffer-string)))
-            (unless (string-empty-p text)
-              text))))))))
+    (when-let* ((argv (my/clipboard-command t))
+                (text (with-temp-buffer
+                        (when (zerop (apply #'call-process (car argv) nil t nil (cdr argv)))
+                          (buffer-string)))))
+      ;; nil when unchanged, so the kill ring doesn't collect duplicates
+      (unless (or (string-empty-p text) (equal text (car kill-ring)))
+        text))))
 
 (setq interprogram-cut-function #'my/clipboard-cut
       interprogram-paste-function #'my/clipboard-paste)
@@ -144,14 +110,6 @@
       (add-to-list 'exec-path gnubin)
       (setenv "PATH" (concat gnubin ":" (getenv "PATH"))))))
 
-
-;; Tools
-
-(defmacro cmd (&rest body)
-  "Shortcut to create an interactive lambda with no arguments."
-  `(lambda ()
-     (interactive "^")
-     ,@body))
 
 (provide 'init/core)
 ;;; core.el ends here

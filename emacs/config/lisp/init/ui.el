@@ -7,7 +7,6 @@
 
 ;; General Settings
 (setq-default fill-column 80
-              bidi-paragraph-direction 'left-to-right
               truncate-string-ellipsis "…"
               auto-revert-check-vc-info nil
               truncate-lines t)
@@ -23,8 +22,6 @@
 (scroll-bar-mode -1)
 (context-menu-mode 1)
 (window-divider-mode 1)
-
-(setopt frame-resize-pixelwise t)
 
 ;; Cursor & Focus
 (setq-default cursor-type '(hbar . 2)
@@ -105,7 +102,7 @@
         (set-face-foreground face divider-bg)))))
 
 
-(add-hook 'after-load-theme-hook #'my/ui-refresh-theme-faces)
+(add-hook 'enable-theme-functions (lambda (_theme) (my/ui-refresh-theme-faces)))
 
 
 ;; Theme
@@ -246,7 +243,6 @@
 
 ;;  Minibuffer & Misc
 (setq use-dialog-box t)
-(setq visible-bell t)
 (setq use-short-answers t)
 (set-face-attribute 'minibuffer-prompt nil
                     :weight 'bold

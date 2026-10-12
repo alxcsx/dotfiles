@@ -5,10 +5,20 @@ FILE="$1"
 LINE="$2"
 COL="$3"
 
-# Under Wayland with PGTK Emacs, inheriting DISPLAY=:0 from Xwayland apps (like Unity)
-# causes PGTK Emacs to attempt an X11 connection and crash. Prioritize Wayland.
+# Ensure a valid terminal type is exported so emacsclient does not error on headless/dumb invocations
+if [ -z "$TERM" ] || [ "$TERM" = "dumb" ]; then
+    export TERM="xterm-256color"
+fi
+
+# Force GTK to prioritize Wayland without breaking emacsclient's display check
 if [ -n "$WAYLAND_DISPLAY" ]; then
-    unset DISPLAY
+    export GDK_BACKEND=wayland
+    export DISPLAY="${DISPLAY:-$WAYLAND_DISPLAY}"
+fi
+
+# Ensure developer environment (mise, dotnet, rust) is present if emacs daemon needs to start
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise env --shell bash 2>/dev/null)"
 fi
 
 # Clean file:// URI prefix if present
@@ -16,18 +26,19 @@ if [[ "$FILE" =~ ^file://(.*)$ ]]; then
     FILE="${BASH_REMATCH[1]}"
 fi
 
-# If target is a directory, open directly in dired in a new frame
-if [ -d "$FILE" ]; then
-    exec emacsclient -c -n -a "" --eval "(dired \"$FILE\")"
+# Open file with line/col if provided (a directory opens in dired)
+ARGS=()
+if [ -n "$LINE" ] && [ "$LINE" -gt 0 ] 2>/dev/null; then
+    if [ -n "$COL" ] && [ "$COL" -gt 0 ] 2>/dev/null; then
+        ARGS+=("+${LINE}:${COL}")
+    else
+        ARGS+=("+${LINE}")
+    fi
 fi
 
-# Always create a new graphical window/frame (-c) so it appears on the current workspace
-if [ -n "$LINE" ] && [ -n "$COL" ]; then
-    exec emacsclient -c -n -a "" "+${LINE}:${COL}" "$FILE"
-elif [ -n "$LINE" ]; then
-    exec emacsclient -c -n -a "" "+${LINE}" "$FILE"
-elif [ -n "$FILE" ]; then
-    exec emacsclient -c -n -a "" "$FILE"
-else
-    exec emacsclient -c -a ""
+if [ -n "$FILE" ]; then
+    ARGS+=("$FILE")
 fi
+
+exec emacsclient -c -n -a "" "${ARGS[@]}"
+

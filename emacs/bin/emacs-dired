@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # ~/.local/bin/emacs-dired
 
-TARGET="${1:-$HOME}"
+# Ensure a valid terminal type is exported so emacsclient does not error on headless/dumb invocations
+if [ -z "$TERM" ] || [ "$TERM" = "dumb" ]; then
+    export TERM="xterm-256color"
+fi
 
-# Under Wayland with PGTK Emacs, inheriting DISPLAY=:0 from Xwayland apps
-# causes PGTK Emacs to attempt an X11 connection and crash. Prioritize Wayland.
+# Under Wayland with PGTK Emacs, force Wayland backend without breaking emacsclient
 if [ -n "$WAYLAND_DISPLAY" ]; then
-    unset DISPLAY
+    export GDK_BACKEND=wayland
+    export DISPLAY="${DISPLAY:-$WAYLAND_DISPLAY}"
 fi
 
-# Clean file:// URI prefix if present
-if [[ "$TARGET" =~ ^file://(.*)$ ]]; then
-    TARGET="${BASH_REMATCH[1]}"
-fi
-
-exec emacsclient -r -n -a "" --eval "(progn (require 'url-util) (dired (url-unhex-string \"$TARGET\")))"
+# Visiting a directory opens dired; the .desktop passes a decoded local path (%f)
+exec emacsclient -r -n -a "" "${1:-$HOME}"

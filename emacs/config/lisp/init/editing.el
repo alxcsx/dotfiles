@@ -4,7 +4,6 @@
 
 
 ;; Tabs, Indentation and Wrapping
-(require 'init/core)
 
 (setq-default indent-tabs-mode nil
 	            tab-always-indent 'complete

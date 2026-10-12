@@ -72,7 +72,6 @@
 ;; Mise
 (use-package mise
   :if (executable-find "mise")
-  :hook (after-init . mise-mode)
   :init
   (global-mise-mode 1))
 
@@ -204,12 +203,7 @@
 
 (defun my/delete-dirvish-side-window ()
   "Delete the Dirvish side tree window if it exists."
-  (when-let* ((win (seq-find
-                    (lambda (w)
-                      (and (window-parameter w 'window-side)
-                           (with-current-buffer (window-buffer w)
-                             (derived-mode-p 'dired-mode))))
-                    (window-list))))
+  (when-let* ((win (car (my/dirvish-side-windows))))
     (when (window-deletable-p win)
       (delete-window win))))
 

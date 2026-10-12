@@ -4,14 +4,14 @@
 
 (defun my/godot-lsp-contact (&optional _interactive _project)
   "Dynamically determine the Godot LSP port based on the project version."
-  (let ((port 6008) ;; Default to Godot 4 port
+  (let ((port 6005) ;; Godot 4 default
         (proj-dir (locate-dominating-file default-directory "project.godot")))
     (when proj-dir
       (with-temp-buffer
         (insert-file-contents (expand-file-name "project.godot" proj-dir))
         (goto-char (point-min))
-        (when (re-search-forward "^config_version=4" nil t)
-          (setq port 6005))))
+        (when (re-search-forward "^config_version=4" nil t) ; Godot 3 project
+          (setq port 6008))))
     (list "127.0.0.1" port))) ; Eglote server Format
 
 (use-package gdscript-mode
