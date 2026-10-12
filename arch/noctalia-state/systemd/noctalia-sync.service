@@ -1,0 +1,6 @@
+[Unit]
+Description=Sync Noctalia settings back into dotfiles
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/noctalia-sync pull
