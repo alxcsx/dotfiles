@@ -6,15 +6,19 @@
 
 ;; Project markers for Unity & .NET solutions
 (with-eval-after-load 'project
-  (dolist (marker '("Assets" "ProjectSettings/ProjectVersion.txt" "*.sln"))
+  (dolist (marker '("*.slnx" "*.sln" "Assets" "ProjectSettings/ProjectVersion.txt"))
     (add-to-list 'project-vc-extra-root-markers marker)))
 
 (defun my/dotnet-unity-project-p (&optional dir)
   "Check whether the current buffer or DIR is inside a Unity project."
-  (let ((dir (or dir default-directory)))
-    (and dir
-         (or (locate-dominating-file dir "Assets")
-             (locate-dominating-file dir "ProjectSettings/ProjectVersion.txt")))))
+  (let* ((dir (or dir default-directory))
+         (proj (project-current nil dir))
+         (root (and proj (project-root proj))))
+    (if root
+        (or (file-exists-p (expand-file-name "Assets" root))
+            (file-exists-p (expand-file-name "ProjectSettings/ProjectVersion.txt" root)))
+      (or (locate-dominating-file dir "Assets")
+          (locate-dominating-file dir "ProjectSettings/ProjectVersion.txt")))))
 
 ;; Hide Unity .meta files in Dired / Dirvish
 (with-eval-after-load 'dired
@@ -45,23 +49,27 @@
 
 
 (defun my/csharp-lsp-contact (&optional _interactive _project)
-  "Determine the LSP contact for C# files, configuring Omnisharp for Unity if needed."
-  (cond
-   ((and (my/dotnet-unity-project-p)
-         (or (executable-find "omnisharp") (executable-find "OmniSharp")))
-    '("omnisharp" "-lsp" "-s" "."))
-   ((executable-find "omnisharp") '("omnisharp" "-lsp"))
-   ((executable-find "OmniSharp") '("OmniSharp" "-lsp"))
-   (t '("csharp-ls"))))
+  "Determine the LSP contact for C# files, configuring OmniSharp or falling back to csharp-ls."
+  (let ((omnisharp-bin (or (executable-find "omnisharp")
+                           (executable-find "OmniSharp"))))
+    (cond
+     (omnisharp-bin
+      (list omnisharp-bin "-lsp" "-s" "."))
+     (t '("csharp-ls")))))
+
+(add-to-list 'treesit-language-source-alist
+             '(c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp"))
+
+(when (treesit-ready-p 'c-sharp t)
+  (add-to-list 'major-mode-remap-alist '(csharp-mode . csharp-ts-mode)))
 
 ;; C# configuration
 (use-package csharp-mode
   :ensure nil
   :mode ("\\.cs\\'" . csharp-mode)
-  :hook (csharp-mode . eglot-ensure)
+  :hook ((csharp-mode . eglot-ensure)
+         (csharp-ts-mode . eglot-ensure))
   :config
-  (add-to-list 'treesit-language-source-alist
-               '(c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp"))
   (with-eval-after-load 'eglot
     (add-to-list 'eglot-server-programs
                  '((csharp-mode csharp-ts-mode) . my/csharp-lsp-contact))

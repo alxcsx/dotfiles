@@ -188,6 +188,10 @@
    `(font-lock-string-face ((t (:foreground ,gruber-darker-green))))
    `(font-lock-type-face ((t (:foreground ,gruber-darker-quartz))))
    `(font-lock-variable-name-face ((t (:foreground ,gruber-darker-fg+1))))
+   `(font-lock-property-name-face ((t (:foreground ,gruber-darker-wisteria))))
+   `(font-lock-property-use-face ((t (:foreground ,gruber-darker-wisteria))))
+   `(font-lock-number-face ((t (:foreground ,gruber-darker-wisteria))))
+   `(font-lock-operator-face ((t (:foreground ,gruber-darker-quartz))))
    `(font-lock-warning-face ((t (:foreground ,gruber-darker-red))))
 
    ;; Flymake
