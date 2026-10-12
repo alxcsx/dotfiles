@@ -3,7 +3,6 @@ HISTFILE="$XDG_STATE_HOME/zsh/history"
 HISTSIZE=10000
 SAVEHIST=10000
 
-setopt APPEND_HISTORY
 setopt SHARE_HISTORY
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_SPACE
@@ -27,11 +26,11 @@ compinit -d "$XDG_CACHE_HOME/zsh/zcompdump"
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 
+# --- GPG
+export GPG_TTY=$TTY
+
 # --- FZF
-if [[ -f /usr/share/fzf/key-bindings.zsh ]]; then
-	source /usr/share/fzf/key-bindings.zsh
-	source /usr/share/fzf/completion.zsh
-fi
+source <(fzf --zsh)
 
 
 # --- MODULES

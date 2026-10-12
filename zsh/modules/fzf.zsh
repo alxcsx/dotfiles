@@ -4,13 +4,13 @@ export FZF_DEFAULT_OPTS="
 --height 60%
 --layout=reverse
 --border
---preview 'bat --style=numbers --color=always {}'
 "
+# file preview only where entries are files (not Ctrl-R history / Alt-C dirs)
+export FZF_CTRL_T_OPTS="--preview 'bat --style=numbers --color=always {}'"
 
 _fzf_file_no_hidden() {
-	local cmd result
-	cmd="${FZF_DEFAULT_COMMAND/--hidden /}"
-	result=$(eval "${cmd:-find . -type f}" | fzf) && LBUFFER+="$result"
+	local result
+	result=$(fd --type f --strip-cwd-prefix | fzf --preview 'bat --style=numbers --color=always {}') && LBUFFER+="${(q)result}"
 	zle reset-prompt
 }
 
