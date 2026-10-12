@@ -1,6 +1,6 @@
 [Unit]
 Description=Llama.cpp Local AI Background Router
-After=network.target
+ConditionPathExists=%h/.config/llamacpp/models-preset.ini
 
 [Service]
 Type=simple
