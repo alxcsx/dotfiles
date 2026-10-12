@@ -15,6 +15,60 @@ mise_install_step() {
 	}
 }
 
+dotnet_tool_step() {
+	local tool="$1"
+	local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+	local tools_dir="${DOTNET_CLI_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/dotnet}/.dotnet/tools"
+
+	step --skip-if "command -v $tool >/dev/null 2>&1" \
+		"Install $tool via dotnet tool" \
+		dotnet tool install -g "$tool" || return 1
+
+	if [ -x "$tools_dir/$tool" ]; then
+		mkdir -p "$bin_dir"
+		ln -sf "$tools_dir/$tool" "$bin_dir/$tool"
+	fi
+}
+
+install_omnisharp() {
+	local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+	local dest_dir="${XDG_DATA_HOME:-$HOME/.local/share}/omnisharp"
+
+	if ! command -v omnisharp >/dev/null 2>&1 && ! command -v OmniSharp >/dev/null 2>&1; then
+		local os_target arch_target
+		case "${OS:-$(uname -s | tr '[:upper:]' '[:lower:]')}" in
+		linux) os_target="linux" ;;
+		darwin) os_target="osx" ;;
+		*)
+			printfln "${RED}[!]${NC} Unsupported OS for OmniSharp"
+			return 1
+			;;
+		esac
+
+		case "$(uname -m)" in
+		x86_64 | amd64) arch_target="x64" ;;
+		aarch64 | arm64) arch_target="arm64" ;;
+		*)
+			printfln "${RED}[!]${NC} Unsupported architecture for OmniSharp"
+			return 1
+			;;
+		esac
+
+		local url="https://github.com/OmniSharp/omnisharp-roslyn/releases/latest/download/omnisharp-${os_target}-${arch_target}.tar.gz"
+		mkdir -p "$dest_dir" "$bin_dir" || return 1
+		curl -sSL "$url" | tar -xz -C "$dest_dir" || return 1
+		chmod +x "$dest_dir/OmniSharp" || return 1
+	fi
+
+	local omnisharp_bin
+	omnisharp_bin="$(command -v OmniSharp 2>/dev/null || command -v omnisharp 2>/dev/null || echo "$dest_dir/OmniSharp")"
+	if [ -x "$omnisharp_bin" ]; then
+		mkdir -p "$bin_dir"
+		ln -sf "$omnisharp_bin" "$bin_dir/omnisharp"
+		ln -sf "$omnisharp_bin" "$bin_dir/OmniSharp"
+	fi
+}
+
 step --run-if '[ -z "$(git config --global user.name)" ]' -I \
 	"Set default Git name" \
 	bash -c 'read -r -p "  -> Enter your full name for Git: " git_name && git config --global user.name "$git_name"'
@@ -33,9 +87,11 @@ mise_install_step uv latest
 mise_install_step ruff latest
 # DOTNET
 mise_install_step dotnet 10
-step --skip-if 'command -v csharp-ls >/dev/null 2>&1' \
-  "Install csharp-ls language server" \
-  dotnet tool install -g csharp-ls
+dotnet_tool_step csharp-ls
+step --skip-if 'command -v omnisharp >/dev/null 2>&1 && command -v OmniSharp >/dev/null 2>&1' \
+	"Install OmniSharp language server" \
+	install_omnisharp
+dotnet_tool_step fsautocomplete
 # JVM
 mise_install_step java lts
 # JS
@@ -46,6 +102,22 @@ mise_install_step pnpm latest
 mise_install_step erlang 29.0.4
 mise_install_step elixir latest
 mise_install_step elixir-ls latest
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+step "Create elixir_ls config dir" mkdir -p "$CONFIG_DIR/elixir_ls"
+link_file "$MODULE_DIR/elixir_ls/setup.sh" "$CONFIG_DIR/elixir_ls/setup.sh"
+step "Run elixir_ls setup hook" "$CONFIG_DIR/elixir_ls/setup.sh"
+
+if [[ "$OS" == "linux" ]]; then
+	step --skip-if '[ -d /home/runner/work/elixir ]' \
+		"Create Elixir runner work directory" \
+		sudo mkdir -p /home/runner/work/elixir
+
+	step --skip-if '[ -L /home/runner/work/elixir/elixir ] && [ "$(readlink /home/runner/work/elixir/elixir 2>/dev/null)" = "'"$HOME/.local/share/mise/current-elixir"'" ]' \
+		"Symlink Elixir runner path for elixir-ls" \
+		sudo ln -sfn "$HOME/.local/share/mise/current-elixir" /home/runner/work/elixir/elixir
+fi
+
 # OTHERS
 mise_install_step rust latest
 mise_install_step just latest
