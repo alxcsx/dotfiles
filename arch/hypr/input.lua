@@ -6,11 +6,7 @@ hl.config({
     input = {
         kb_layout  = "us",
         kb_variant = "intl",
-        kb_model   = "pc104",
-        kb_options = "",
-        kb_rules   = "",
         follow_mouse = 1,
-        sensitivity = 0,
         touchpad = {
             natural_scroll = true,
         },
@@ -68,11 +64,11 @@ hl.bind(c.mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(c.mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 
 -- Laptop multimedia keys for volume and LCD brightness
-hl.bind("XF86AudioRaiseVolume" , hl.dsp.exec_cmd(c.ipc .. "volume-up"))
-hl.bind("XF86AudioLowerVolume" , hl.dsp.exec_cmd(c.ipc .. "volume-down"))
-hl.bind("XF86AudioMute"				 , hl.dsp.exec_cmd(c.ipc .. "volume-mute"))
-hl.bind("XF86MonBrightnessUp"	 , hl.dsp.exec_cmd(c.ipc .. "brightness-up"))
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(c.ipc .. "brightness-down"))
+hl.bind("XF86AudioRaiseVolume" , hl.dsp.exec_cmd(c.ipc .. "volume-up"),   { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume" , hl.dsp.exec_cmd(c.ipc .. "volume-down"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute"        , hl.dsp.exec_cmd(c.ipc .. "volume-mute"), { locked = true })
+hl.bind("XF86MonBrightnessUp"  , hl.dsp.exec_cmd(c.ipc .. "brightness-up"),   { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(c.ipc .. "brightness-down"), { locked = true, repeating = true })
 
 -- Requires playerctl
 hl.bind("XF86AudioNext"	, hl.dsp.exec_cmd("playerctl next"),       { locked = true })

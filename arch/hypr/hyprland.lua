@@ -2,20 +2,17 @@ require("monitors")
 require("input")
 require("visuals")
 require("workspace")
-require("events")
 local c = require("constants")
 -------------------------------
 ----       AUTOSTART       ----
 -------------------------------
 
 hl.on("hyprland.start", function ()
-    hl.dsp.focus({ workspace = c.workspace_for_monitor(1,1)})
-
+    hl.exec_cmd("dbus-update-activation-environment --systemd --all")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'")
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
-    hl.exec_cmd("dbus-update-activation-environment --systemd --all")
 
     hl.exec_cmd("noctalia")
 end)
@@ -29,11 +26,9 @@ hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 
 hl.env("XCURSOR_SIZE", "18")
 hl.env("HYPRCURSOR_SIZE", "18")
-hl.env("GDK_SCALE", "1.5")
 hl.env("GDK_BACKEND", "wayland")
 hl.env("QT_QPA_PLATFORM", "wayland")
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
-hl.env("GTK_THEME", "Adwaita:dark")
 
 -------------------------------
 ----         MISC          ----
