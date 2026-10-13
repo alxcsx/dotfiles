@@ -70,7 +70,8 @@
   :hook (prog-mode . hs-minor-mode)
   :bind
   (:map hs-minor-mode-map
-        ("C-c TAB" . hs-toggle-hiding)))
+        ("C-c TAB" . hs-toggle-hiding)
+        ("<backtab>" . hs-toggle-hiding)))
 
 
 (provide 'lang/core)
