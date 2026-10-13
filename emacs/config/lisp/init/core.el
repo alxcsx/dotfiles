@@ -2,7 +2,24 @@
 ;;; Commentary:
 ;;; Code:
 
-;; Shell Environment Variables (mise itself is handled per-buffer by mise.el in tools.el)
+(defun my/load-mise-env ()
+  "Load mise environment variables and shims into Emacs without an interactive shell."
+  (when-let* ((mise-bin (or (executable-find "mise")
+                            (expand-file-name "~/.local/bin/mise")))
+              (json (ignore-errors
+                      (with-temp-buffer
+                        (when (zerop (call-process mise-bin nil t nil "env" "--json"))
+                          (goto-char (point-min))
+                          (json-parse-buffer :object-type 'alist))))))
+    (dolist (pair json)
+      (let ((var (symbol-name (car pair)))
+            (val (cdr pair)))
+        (setenv var val)
+        (when (string= var "PATH")
+          (setq exec-path (append (parse-colon-path val) (list exec-directory))))))))
+
+(my/load-mise-env)
+
 (use-package exec-path-from-shell
   :if (or (daemonp) (memq window-system '(mac ns x pgtk)))
   :demand t

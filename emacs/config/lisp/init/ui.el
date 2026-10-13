@@ -158,8 +158,8 @@
          (color (if active 'font-lock-keyword-face 'shadow))
          (icon (ignore-errors
                  (if active
-                     (nerd-icons-faicon "circle")
-                   (nerd-icons-faicon "circle-o")))))
+                     (nerd-icons-faicon "nf-fa-circle")
+                   (nerd-icons-faicon "nf-fa-circle_o")))))
     (propertize (concat (or icon (if active "◉" "○")) " ")
                 'face color)))
 
@@ -216,7 +216,7 @@
     (:eval (when (and vc-mode (stringp vc-mode))
              (let ((branch (replace-regexp-in-string "^[ -]*[A-Za-z]+[-:]" "" (substring-no-properties vc-mode))))
                 (concat (propertize (if (fboundp 'nerd-icons-octicon)
-                                        (nerd-icons-octicon "git-branch")
+                                        (nerd-icons-octicon "nf-oct-git_branch")
                                       "")
                                     'face 'my/ui-faded-face)
                         " "

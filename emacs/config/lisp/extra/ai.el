@@ -7,6 +7,16 @@
   :ensure (:host github :repo "copilot-emacs/copilot.el" :files ("*.el" "dist"))
   :custom (copilot-indent-offset-warning-disable t)
   :hook (prog-mode . copilot-mode)
+  :config
+
+  (defvar my/copilot--starting-server nil)
+  (defun my/copilot--start-server-once (orig &rest args)
+    "Call ORIG, but never re-enter `copilot--start-server'."
+    (if my/copilot--starting-server
+        (error "Copilot server failed to start; check `node' and *copilot stderr*")
+      (let ((my/copilot--starting-server t))
+        (apply orig args))))
+  (advice-add 'copilot--start-server :around #'my/copilot--start-server-once)
   :bind (:map copilot-completion-map
               ("<tab>" . copilot-accept-completion)
               ("TAB" . copilot-accept-completion)

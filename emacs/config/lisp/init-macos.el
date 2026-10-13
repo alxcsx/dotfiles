@@ -2,7 +2,8 @@
 ;;; Commentary:
 ;;; Code:
 
-(setq dired-use-ls-dired t) ; `ls' is GNU via gnubin on PATH (init/core.el)
+(setq insert-directory-program "gls"
+      dired-use-ls-dired t)
 
 
 (setq mac-command-modifier 'control)
