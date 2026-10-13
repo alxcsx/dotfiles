@@ -2,10 +2,15 @@ local c = require("constants")
 
 hl.env("LC_CTYPE", "pt_BR.UTF-8")
 
+-- Both layouts loaded on every host; Alt+Shift cycles. First listed = boot
+-- default. Per-machine order lives in hosts/<hostname>/hypr/host.lua
+local kb = c.host.keyboard or { layout = "us,br", variant = "intl,abnt2" }
+
 hl.config({
     input = {
-        kb_layout  = "us",
-        kb_variant = "intl",
+        kb_layout  = kb.layout,
+        kb_variant = kb.variant,
+        kb_options = "grp:alt_shift_toggle",
         follow_mouse = 1,
         touchpad = {
             natural_scroll = true,
@@ -24,6 +29,8 @@ hl.bind(c.mainMod .. " + C", hl.dsp.window.close())
 hl.bind(c.mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(c.mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 hl.bind(c.mainMod .. " + P", hl.dsp.window.pseudo())
+-- Cycle xkb layouts (us-intl / pt-abnt2); keep in sync with the bar widget
+hl.bind(c.mainMod .. " + SHIFT + P", hl.dsp.exec_cmd(c.ipc .. "keyboard-layout-cycle"))
 hl.bind(c.mainMod .. " + F", hl.dsp.window.fullscreen())
 hl.bind(c.mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
 
