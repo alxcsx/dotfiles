@@ -92,6 +92,10 @@ step "Start Visual Presentation Services" bash -c '
   brew services restart borders
 '
 
+## - Emacs Client app & server daemon
+step "Install Emacs Client app and enable the server daemon" \
+  "$MODULE_DIR/emacs-client/install.sh"
+
 ## - Karabiner
 step \
   --skip-if "[ -f \"$CONFIG_DIR/karabiner/karabiner.json\" ]" \
