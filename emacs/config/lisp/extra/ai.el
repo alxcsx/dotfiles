@@ -5,6 +5,7 @@
 
 (use-package copilot
   :ensure (:host github :repo "copilot-emacs/copilot.el" :files ("*.el" "dist"))
+  :custom (copilot-indent-offset-warning-disable t)
   :hook (prog-mode . copilot-mode)
   :bind (:map copilot-completion-map
               ("<tab>" . copilot-accept-completion)

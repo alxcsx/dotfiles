@@ -84,7 +84,7 @@ source = "community"
 wallpaper_scheme = "m3-monochrome"
 
     [theme.templates]
-    builtin_ids = [ "btop", "emacs", "gtk3", "gtk4", "hyprland", "kitty", "qt", "starship" ]
+    builtin_ids = [ "btop", "gtk3", "gtk4", "hyprland", "kitty", "qt", "starship" ]
     community_ids = [ "zen-browser", "discord", "telegram", "vscode", "steam", "bat" ]
 
 [widget.bluetooth]
