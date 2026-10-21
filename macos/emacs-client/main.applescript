@@ -14,7 +14,7 @@ on open theDropped
 	repeat with oneDrop in theDropped
 		set dropPath to quoted form of POSIX path of oneDrop
 		try
-			do shell script shellPath & " " & emacsclientPath & " -c -a '' -n " & dropPath
+			do shell script shellPath & " " & emacsclientPath & " -r -a '' -n " & dropPath
 		on error
 			do shell script "open -a Emacs"
 		end try
@@ -24,7 +24,7 @@ end open
 -- Handle launch without files (from Spotlight, Dock, or Finder)
 on run
 	try
-		do shell script shellPath & " " & emacsclientPath & " -c -a '' -n"
+		do shell script shellPath & " " & emacsclientPath & " -r -a '' -n"
 	on error
 		do shell script "open -a Emacs"
 	end try

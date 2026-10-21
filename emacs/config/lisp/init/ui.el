@@ -66,7 +66,10 @@
   (let* ((default-bg (my/ui--safe-color (face-background 'default nil 'default) "#181818"))
          (mode-line-bg (my/ui--safe-color (face-background 'mode-line nil 'default)))
          (mode-line-active-bg (my/ui--safe-color (face-background 'mode-line-active nil 'default)))
-         (divider-bg (or mode-line-bg mode-line-active-bg default-bg)))
+         (divider-bg (cond
+                      ((custom-theme-enabled-p 'vscode-dark-plus) "#2d2d2d")
+                      ((custom-theme-enabled-p 'gruber-darker) "#282828")
+                      (t (or mode-line-active-bg mode-line-bg default-bg)))))
     ;; Frame background.
     (setq default-frame-alist (cons
                                (cons 'background-color default-bg)
@@ -84,19 +87,30 @@
                             :overline nil
                             :underline nil)))
 
-    (when (and (facep 'mode-line-active)
-               mode-line-bg
-               (or (not mode-line-active-bg)
-                   (equal mode-line-active-bg default-bg)))
-      (set-face-background 'mode-line-active mode-line-bg)
-      (setq divider-bg mode-line-bg))
+      (cond
+       ((custom-theme-enabled-p 'vscode-dark-plus)
+        (set-face-attribute 'mode-line nil :background "#252526" :foreground "#cccccc")
+        (set-face-attribute 'mode-line-active nil :background "#252526" :foreground "#cccccc")
+        (set-face-attribute 'mode-line-inactive nil :background "#1e1e1e" :foreground "#858585"))
+       ((custom-theme-enabled-p 'gruber-darker)
+        (set-face-attribute 'mode-line nil :background "#282828" :foreground "#ffffff")
+        (set-face-attribute 'mode-line-active nil :background "#282828" :foreground "#ffffff")
+        (set-face-attribute 'mode-line-inactive nil :background "#181818" :foreground "#52494e"))
+       (t
+        (when (and (facep 'mode-line-active) mode-line-bg)
+          (set-face-background 'mode-line-active mode-line-bg))))
 
-    ;; Separators.
+    ;; Fringe matches editor background so gutter blends cleanly.
+    (when (facep 'fringe)
+      (set-face-attribute 'fringe nil
+                          :background default-bg
+                          :foreground nil))
+
+    ;; Separators and window dividers.
     (dolist (face '(window-divider
                     window-divider-first-pixel
                     window-divider-last-pixel
-                    vertical-border
-                    fringe))
+                    vertical-border))
       (when (facep face)
         (set-face-background face divider-bg)
         (set-face-foreground face divider-bg)))))
@@ -105,9 +119,31 @@
 (add-hook 'enable-theme-functions (lambda (_theme) (my/ui-refresh-theme-faces)))
 
 
-;; Theme
+;; Themes
 
-(load-theme 'gruber-darker t)
+(use-package vscode-dark-plus-theme
+  :defer t)
+
+(defvar my/theme-primary 'gruber-darker
+  "Primary color theme.")
+
+(defvar my/theme-secondary 'vscode-dark-plus
+  "Secondary color theme.")
+
+(defun my/toggle-theme ()
+  "Toggle between `my/theme-primary' and `my/theme-secondary'."
+  (interactive)
+  (let* ((active (car custom-enabled-themes))
+         (next (if (eq active my/theme-primary)
+                   my/theme-secondary
+                 my/theme-primary)))
+    (mapc #'disable-theme custom-enabled-themes)
+    (load-theme next t)
+    (message "Switched to theme: %s" next)))
+
+(global-set-key (kbd "C-c T") #'my/toggle-theme)
+
+(load-theme my/theme-primary t)
 
 ;; Refresh correctly for emacsclient frames
 
