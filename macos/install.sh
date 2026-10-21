@@ -78,6 +78,7 @@ step "Setup Config Directories" \
   mkdir -p "$CONFIG_DIR/borders" "$CONFIG_DIR/aerospace" "$CONFIG_DIR/karabiner"
 
 link_file "$MODULE_DIR/borders/bordersrc" "$CONFIG_DIR/borders/bordersrc"
+link_file "$MODULE_DIR/borders/toggle.sh" "$CONFIG_DIR/borders/toggle.sh"
 link_file "$MODULE_DIR/aerospace/aerospace.toml" "$CONFIG_DIR/aerospace/aerospace.toml"
 
 step \
@@ -86,7 +87,7 @@ step \
   rm -f "$HOME/.aerospace.toml"
 
 step "Make Scripts Executable" \
-     chmod +x "$CONFIG_DIR/borders/bordersrc"
+     chmod +x "$CONFIG_DIR/borders/bordersrc" "$CONFIG_DIR/borders/toggle.sh"
 
 step "Start Visual Presentation Services" bash -c '
   brew services restart borders
@@ -109,5 +110,9 @@ append_rc_step "MACOS" "$(
   cat <<'SHELL'
 export GOKU_EDN_CONFIG_FILE="$XDG_CONFIG_HOME/karabiner/karabiner.edn"
 launchctl setenv GOKU_EDN_CONFIG_FILE "$XDG_CONFIG_HOME/karabiner/karabiner.edn"
+
+# Borders
+alias tb="${XDG_CONFIG_HOME:-$HOME/.config}/borders/toggle.sh"
+alias borders-toggle="${XDG_CONFIG_HOME:-$HOME/.config}/borders/toggle.sh"
 SHELL
 )"

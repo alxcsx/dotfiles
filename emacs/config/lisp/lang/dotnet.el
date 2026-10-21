@@ -60,8 +60,14 @@
 (add-to-list 'treesit-language-source-alist
              '(c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp"))
 
-(when (treesit-ready-p 'c-sharp t)
-  (add-to-list 'major-mode-remap-alist '(csharp-mode . csharp-ts-mode)))
+(defun my/dotnet-ensure-treesit ()
+  "Ensure tree-sitter c-sharp grammar is installed and activate csharp-ts-mode."
+  (unless (treesit-language-available-p 'c-sharp)
+    (ignore-errors (treesit-install-language-grammar 'c-sharp)))
+  (when (treesit-ready-p 'c-sharp t)
+    (add-to-list 'major-mode-remap-alist '(csharp-mode . csharp-ts-mode))))
+
+(my/dotnet-ensure-treesit)
 
 ;; C# configuration
 (use-package csharp-mode
