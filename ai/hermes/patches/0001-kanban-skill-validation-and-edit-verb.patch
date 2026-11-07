@@ -1,0 +1,144 @@
+diff --git a/hermes_cli/kanban.py b/hermes_cli/kanban.py
+index e1c36a8111..4cbbcbd07a 100644
+--- a/hermes_cli/kanban.py
++++ b/hermes_cli/kanban.py
+@@ -951,10 +951,17 @@ def _cmd_edit(args: argparse.Namespace) -> int:
+     title = getattr(args, "title", None)
+     body = getattr(args, "body", None)
+     priority = getattr(args, "priority", None)
++    skills = getattr(args, "skills", None)
++    clear_skills = bool(getattr(args, "clear_skills", False))
+     if result is None and (summary is not None or raw_metadata is not None):
+         return _err("kanban edit: --summary and --metadata require --result", 2)
+-    if all(value is None for value in (title, body, priority, result)):
+-        return _err("kanban edit: provide --title, --body, --priority, or --result", 2)
++    if all(value is None for value in (title, body, priority, result, skills)) \
++            and not clear_skills:
++        return _err(
++            "kanban edit: provide --title, --body, --priority, --result, --skill or "
++            "--clear-skills",
++            2,
++        )
+     metadata, rc = _parse_metadata_flag(raw_metadata)
+     if rc:
+         return rc
+@@ -962,6 +969,7 @@ def _cmd_edit(args: argparse.Namespace) -> int:
+         ok = kb.edit_task(
+             conn, args.task_id, title=title, body=body, priority=priority,
+             result=result, summary=summary, metadata=metadata,
++            skills=skills, clear_skills=clear_skills,
+         )
+     return _ok_or_err(
+         ok,
+diff --git a/hermes_cli/kanban_db.py b/hermes_cli/kanban_db.py
+index 36d5736f73..04c2381b46 100644
+--- a/hermes_cli/kanban_db.py
++++ b/hermes_cli/kanban_db.py
+@@ -15,6 +15,7 @@ locks). Schema: tasks, task_links, task_comments, task_events, task_runs, attach
+ from __future__ import annotations
+ 
+ import contextlib
++import difflib
+ import json
+ import os
+ import re
+@@ -1178,9 +1179,51 @@ def _normalize_task_skills(skills: Optional[Iterable[str]]) -> Optional[list[str
+             "(e.g. `blogwatcher`, `github-code-review`); toolsets are runtime "
+             "capabilities (e.g. `web`, `browser`, `terminal`)."
+         )
++    known = _known_skill_names()
++    if known is not None:
++        unknown = [n for n in cleaned if n not in known]
++        if unknown:
++            hints = []
++            for name in unknown:
++                close = difflib.get_close_matches(name, known, n=1, cutoff=0.6)
++                hints.append(f"{name!r}" + (f" (did you mean {close[0]!r}?)" if close else ""))
++            raise ValueError(
++                f"unknown skill(s): {', '.join(hints)}. A skill's name is the directory"
++                " holding its SKILL.md (`skills/<category>/<name>/SKILL.md`) — never the"
++                " category above it and never a profile name. `hermes skills list` shows"
++                " the valid names; omit `--skill` to run with the profile's default set."
++            )
+     return cleaned
+ 
+ 
++def _known_skill_names() -> Optional[set[str]]:
++    """Every skill name resolvable from this process, or None when unknown.
++
++    A bad name is not harmless: the worker rejects it at SPAWN, which burns one
++    claim, retries twice, trips the breaker, and parks the card for a human who
++    has no CLI verb to repair `tasks.skills` (only `edit --skill` added below).
++    Rejecting at creation costs nothing and the caller can still correct it.
++    `KNOWN_TOOLSET_NAMES` catches the toolset/skill confusion; this catches the
++    other half — a CATEGORY (`creative`) or a PROFILE (`architect`), both of which
++    look exactly like skill names and both of which killed a real card.
++
++    Fail-open on any error: card creation must never depend on this probe.
++    """
++    try:
++        from agent.skill_utils import get_all_skills_dirs
++
++        roots = get_all_skills_dirs()
++    except Exception:
++        return None
++    names: set[str] = set()
++    for root in roots:
++        try:
++            names.update(md.parent.name for md in Path(root).rglob("SKILL.md"))
++        except OSError:
++            continue
++    return names or None
++
++
+ def create_task(
+     conn: sqlite3.Connection, *, title: str, body: Optional[str] = None,
+     assignee: Optional[str] = None, created_by: Optional[str] = None,
+@@ -3070,8 +3113,16 @@ def edit_task(
+     body: Optional[str] = None, priority: Optional[int] = None,
+     result: Optional[str] = None, summary: Optional[str] = None,
+     metadata: Optional[dict] = None, board: Optional[str] = None,
++    skills: Optional[Iterable[str]] = None, clear_skills: bool = False,
+ ) -> bool:
+-    """Edit task fields, optionally backfilling a completed task's result."""
++    """Edit task fields, optionally backfilling a completed task's result.
++
++    ``skills``/``clear_skills`` exist because a card whose forced skills cannot be
++    resolved dies at every spawn, and before this the only repair was a raw
++    ``UPDATE tasks SET skills`` — the CLI had no verb, so an agent that found the
++    bad card could not fix it. ``clear_skills`` is separate from ``skills=[]``
++    because ``None`` already means "leave alone".
++    """
+     changed_fields = [
+         field for field, value in (("title", title), ("body", body), ("priority", priority))
+         if value is not None
+@@ -3090,6 +3141,12 @@ def edit_task(
+             assignments.append("result = ?")
+             params.append(result)
+             changed_fields.append("result")
++        if clear_skills or skills is not None:
++            normalized = None if clear_skills else _normalize_task_skills(skills)
++            assignments.append("skills = ?")
++            params.append(json.dumps(normalized) if normalized else None)
++            changed_fields.append("skills")
++            _append_event(conn, task_id, "skills_changed", {"skills": normalized})
+         if not assignments:
+             return False
+         conn.execute(
+diff --git a/hermes_cli/kanban_parser.py b/hermes_cli/kanban_parser.py
+index 8a65d41346..b6c9c39011 100644
+--- a/hermes_cli/kanban_parser.py
++++ b/hermes_cli/kanban_parser.py
+@@ -310,6 +310,12 @@ _SPECS = [
+         _arg("--body", help="Replace the task body"),
+         _arg("--priority", type=int, help="Replace the task priority"),
+         _arg("--result", help="Backfilled task result text for a done task"),
++        _arg("--skill", action="append", default=None, dest="skills",
++             help="Replace the card's forced skills (repeatable). This is the repair "
++                  "path for a card whose skills do not resolve: without it the worker "
++                  "dies at every spawn and only a raw SQL UPDATE can fix the card."),
++        _arg("--clear-skills", action="store_true",
++             help="Drop all forced skills from the card, keeping the profile default set."),
+         *_STEP_HANDOFF,
+     ], help="Edit task fields or recovery fields on an already-completed task"),
+     _cmd("block", [
