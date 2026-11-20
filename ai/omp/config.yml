@@ -1,0 +1,34 @@
+modelRoles:
+  plan: opencode-go/deepseek-v4-pro:high
+  advisor: opencode-go/deepseek-v4-pro:high
+  task: opencode-go/deepseek-v4.1-flash:medium
+  smol: opencode-go/deepseek-v4.1-flash:low
+  commit: opencode-go/deepseek-v4.1-flash:low
+  default: opencode-go/beam-free
+defaultThinkingLevel: medium
+enabledProviders:
+  - opencode-go
+disabledExtensions:
+  - context-file:user:GEMINI.md
+  - context-file:user:CLAUDE.md
+advisor:
+  enabled: false
+  syncBacklog: "off"
+  immuneTurns: 3
+task:
+  maxConcurrency: 3
+retry:
+  fallbackChains:
+    plan:
+      - opencode-go/deepseek-v4.1-flash:max
+    advisor:
+      - opencode-go/deepseek-v4.1-flash:high
+symbolPreset: nerd
+composer:
+  shape: band
+theme:
+  dark: titanium
+  light: light
+update:
+  auto: true
+setupVersion: 3

@@ -1,0 +1,10 @@
+{
+  "model": "sonnet",
+  "effortLevel": "medium",
+  "theme": "dark",
+  "enabledPlugins": {
+    "context7@claude-plugins-official": false,
+    "session-report@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false
+  }
+}

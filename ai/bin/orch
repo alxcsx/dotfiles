@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Start every installed agent (omp, agy, claude, copilot) in a Herdr core
+# workspace for the current folder, then attach to omp.
+set -euo pipefail
+
+if ! command -v hc >/dev/null 2>&1; then
+  printf 'hc not found. Install it with: ./dot.sh install ai\n' >&2
+  exit 1
+fi
+
+pane_running() {
+  hc ls --json 2>/dev/null | grep -q "\"name\":\"$1\""
+}
+
+# Forward the caller's environment to hc run: herdr-core (especially when
+# started by herdr-app) has a bare GUI environment without XDG_*,
+# CLAUDE_CONFIG_DIR, COPILOT_HOME, PATH, etc. Skip terminal/session-specific
+# variables so each pane gets a clean terminal identity.
+build_env_args() {
+  local var
+  env_args=()
+  for var in $(compgen -e); do
+    case "$var" in
+    HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | \
+      ITERM_* | KITTY_* | WEZTERM_* | ALACRITTY_* | TMUX* | ZELLIJ* | \
+      ANTIGRAVITY_* | __CF* | __MISE_ORIG_PATH | Apple_PubSub_* | \
+      LaunchInstanceID | SECURITYSESSIONID | COMMAND_MODE)
+      continue
+      ;;
+    esac
+    env_args+=("$var=${!var}")
+  done
+}
+
+# Pane name: <agent>[-<model>]-<workspace>, max 32 chars (hc limit). `ask`
+# builds the same names, so keep both in sync.
+pane_name() {
+  local agent="$1" model="$2" slug=""
+  [ -n "$model" ] && slug="-$(printf '%s' "$model" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9_\n-' '-')"
+  printf '%s%s-%s' "$agent" "$slug" "$ws" | cut -c1-32
+}
+
+start_pane() {
+  local name="$1" agent="$2" model="$3"
+  pane_running "$name" && return 0
+  local argv=("$(command -v "$agent")")
+  [ -n "$model" ] && argv+=(--model "$model")
+  # Outlive this launcher so closing the terminal does not kill the agents.
+  hc run --bg --outlive-parent --name "$name" --cwd "$PWD" \
+    env "${env_args[@]}" "${argv[@]}" >/dev/null
+}
+
+# hc keeps terminals in the background. The app only shows terminals that
+# have a pane, so give each one a tab (idempotent when it already has one).
+show_in_app() {
+  local name="$1" id
+  id=$(hc get "$name" --json 2>/dev/null | sed -n 's/.*"address":"\([^"]*\)".*/\1/p')
+  if [ -n "$id" ]; then
+    herdr-app do terminal.keep --terminal "$id" --place tab >/dev/null || true
+  fi
+}
+
+gui=0
+if command -v herdr-app >/dev/null 2>&1 &&
+  [ -z "${SSH_TTY:-}${SSH_CONNECTION:-}" ] &&
+  { [ "$(uname -s)" = "Darwin" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; }; then
+  gui=1
+  herdr-app >/dev/null 2>&1 &
+  # Let the window connect to herdr-core before adding tabs.
+  for _ in {1..50}; do
+    herdr-app status >/dev/null 2>&1 && break
+    sleep 0.2
+  done
+fi
+
+# Usage: orch [agent[:model] ...]   (default: omp agy claude copilot)
+#   orch omp:deepseek-v4.1-flash omp:deepseek-v4-pro agy:hydrogen agy:argon
+# The same agent may appear with several models; each gets its own pane.
+# Panes are named per workspace (omp-dotfiles, ...) so each folder gets its
+# own set. `ask` resolves names the same way.
+ws=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -c 'A-Za-z0-9_\n-' '-')
+
+build_env_args
+
+started=()
+[ $# -gt 0 ] || set -- omp agy claude copilot
+for spec in "$@"; do
+  agent="${spec%%:*}" model=""
+  [ "$spec" = "$agent" ] || model="${spec#*:}"
+  command -v "$agent" >/dev/null 2>&1 || continue
+  name=$(pane_name "$agent" "$model")
+  start_pane "$name" "$agent" "$model"
+  started+=("$name")
+done
+if [ ${#started[@]} -eq 0 ]; then
+  printf 'No agents found in PATH. Install them with: ./dot.sh install ai\n' >&2
+  exit 1
+fi
+
+if [ "$gui" = 1 ]; then
+  for agent in "${started[@]}"; do
+    show_in_app "$agent"
+  done
+  printf 'Opened Herdr app. Panes: %s\n' "${started[*]}"
+  exit 0
+fi
+
+hc ls
+
+if [ -t 0 ] && [ -t 1 ]; then
+  # ctrl+\ detaches. The Herdr app attaches to the same core.
+  exec hc attach "${started[0]}"
+fi
+
+printf 'Attach with: hc attach <%s>\n' "$(IFS='|'; echo "${started[*]}")"

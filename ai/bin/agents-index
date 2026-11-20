@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Regenerate .agents/INDEX.md: one line per handoff note and task spec, so an
+# agent reads the index first and opens only the file it needs.
+#   agents-index [project-dir]
+set -euo pipefail
+
+root="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+dir="$root/.agents"
+[ -d "$dir" ] || { echo "agents-index: no $dir" >&2; exit 1; }
+
+{
+  echo "# Agent index"
+  echo
+  echo "Read this first; open only the file you need."
+  echo
+  echo "## Handoffs"
+  for f in "$dir"/handoff/*.md; do
+    [ -e "$f" ] || continue
+    title=$(awk '/^# /{sub(/^# +/, ""); print; exit}' "$f")
+    printf -- '- [%s](handoff/%s) — %s (%s)\n' "$(basename "$f" .md)" "$(basename "$f")" \
+      "${title:-no title}" "$(date -r "$f" +%F)"
+  done
+  echo
+  echo "## Tasks"
+  for f in "$dir"/tasks/*.json; do
+    [ -e "$f" ] || continue
+    goal=$(jq -r '.goal // "no goal"' "$f" 2>/dev/null || echo "invalid json")
+    printf -- '- [%s](tasks/%s) — %s\n' "$(basename "$f" .json)" "$(basename "$f")" "$goal"
+  done
+} >"$dir/INDEX.md"
+echo "$dir/INDEX.md"
