@@ -8,15 +8,16 @@ return {
     },
     monitors = {
         {
-            output   = "DP-1",
-            mode     = "2560x1440@180",
-            position = "auto",
-            scale    = "auto",
+            output    = "HDMI-A-1",
+            mode      = "preferred",
+            position  = "0x0",
+            transform = 1,
         },
         {
-            output   = "HDMI-A-1",
-            position = "auto-left",
-            transform = 1,
+            output   = "DP-1",
+            mode     = "2560x1440@180",
+            position = "1080x0",
+            scale    = 1,
         },
     },
 }

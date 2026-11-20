@@ -1,0 +1,12 @@
+[general]
+fullscreen = false
+early-exit = ["copy"]
+initial-tool = "brush"
+copy-command = "wl-copy --type image/png"
+output-filename = "~/Pictures/Screenshots/screenshot-%Y%m%d-%H%M%S.png"
+save-after-copy = false
+default-hide-toolbars = false
+primary-highlighter = "block"
+actions-on-enter = ["save-to-clipboard", "exit"]
+actions-on-escape = ["exit"]
+notification-thumbnail = "screenshot"

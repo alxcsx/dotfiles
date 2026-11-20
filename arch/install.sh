@@ -15,6 +15,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 
 link_dir_content "$MODULE_DIR/hypr" "$CONFIG_DIR/hypr"
 link_dir_content "$MODULE_DIR/noctalia" "$CONFIG_DIR/noctalia"
+link_dir_content "$MODULE_DIR/satty" "$CONFIG_DIR/satty"
 
 # Machine-specific overrides (monitors, workspaces) — hosts/<hostname>/hypr/
 HOST_DIR="$MODULE_DIR/hosts/$(uname -n)"

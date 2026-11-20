@@ -38,6 +38,10 @@ hl.config({
     misc = {
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
+        -- single-shot: persistent (2) yanks every new window, including X11 mode-less
+        -- popups, back to the workspace the process was launched from.
+        initial_workspace_tracking = 1,
+        initial_workspace_token_timeout = 60,
     },
     xwayland = {
         force_zero_scaling = true,
@@ -66,6 +70,64 @@ hl.window_rule({
     no_focus = true,
 })
 
+-- Fix Unity Editor dropdowns, popups and dialogs
+-- Unity menus are real X11 toplevels, not override-redirect popups: they need input
+-- immediately (else Unity closes them) and Unity's own global coords are wrong on
+-- multi-monitor, so selectors are placed at the cursor instead.
+local unity_selector_pos = { "cursor_x - (window_w * 0.5)", "cursor_y - (window_h * 0.5)" }
+
+hl.window_rule({
+    name  = "unity-input",
+    match = { class = "^([Uu]nity.*)$" },
+    allows_input = true,
+})
+
+hl.window_rule({
+    name  = "unity-tooltips",
+    match = { class = "^([Uu]nity.*)$", initial_title = "UnityTooltipWindow" },
+    allows_input = false, no_focus = true, no_initial_focus = true, focus_on_activate = false,
+})
+
+hl.window_rule({
+    name = "unity-add-component",
+    match = {
+        class = "^([Uu]nity.*)$",
+        initial_title = "UnityEditor.AddComponent.AddComponentWindow",
+    },
+    move  = unity_selector_pos,
+    float = true,
+})
+
+hl.window_rule({
+    name = "unity-advanced-dropdown",
+    match = {
+        class = "^([Uu]nity.*)$",
+        initial_title = "UnityEditor.IMGUI.Controls.AdvancedDropdownWindow",
+    },
+    move  = unity_selector_pos,
+    float = true,
+})
+
+hl.window_rule({
+    name = "unity-dialogs",
+    match = {
+        class = "^([Uu]nity.*)$",
+        title = "^(Project Settings|Preferences|Package Manager|UI Toolkit Debugger|Font Asset Creator|Background Tasks)$",
+    },
+    float = true,
+    min_size = { 300, 300 },
+})
+
+hl.window_rule({
+    name = "unity-color-picker",
+    match = {
+        class = "^([Uu]nity.*)$",
+        title = "^(Color|HDR Color)$",
+    },
+    float = true,
+    move = "cursor 0 0",
+})
+
 hl.window_rule{
 	name = "floating-file-picker",
 	match = {
@@ -75,6 +137,13 @@ hl.window_rule{
 	center = true,
 	size = { 800,600},
 }
+
+hl.window_rule({
+	name  = "satty",
+	match = { class = "^(com\\.gabm\\.satty)$" },
+	float = true,
+	center = true,
+})
 
 hl.window_rule({
     name  = "move-hyprland-run",

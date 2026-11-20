@@ -20,6 +20,7 @@ require_pkgs \
   grim \
   slurp \
   wl-clipboard \
+  satty \
   playerctl \
   gnome-keyring \
   glib2 \
