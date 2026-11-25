@@ -3,6 +3,10 @@
 # workspace for the current folder, then attach to omp.
 set -euo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")")" && pwd)
+# shellcheck source=_agents.sh
+. "$SCRIPT_DIR/_agents.sh"
+
 if ! command -v hc >/dev/null 2>&1; then
   printf 'hc not found. Install it with: ./dot.sh install ai\n' >&2
   exit 1
@@ -32,19 +36,11 @@ build_env_args() {
   done
 }
 
-# Pane name: <agent>[-<model>]-<workspace>, max 32 chars (hc limit). `ask`
-# builds the same names, so keep both in sync.
-pane_name() {
-  local agent="$1" model="$2" slug=""
-  [ -n "$model" ] && slug="-$(printf '%s' "$model" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9_\n-' '-')"
-  printf '%s%s-%s' "$agent" "$slug" "$ws" | cut -c1-32
-}
-
 start_pane() {
   local name="$1" agent="$2" model="$3"
   pane_running "$name" && return 0
   local argv=("$(command -v "$agent")")
-  [ -n "$model" ] && argv+=(--model "$model")
+  append_model_args "$agent" "$model" ""
   # Outlive this launcher so closing the terminal does not kill the agents.
   hc run --bg --outlive-parent --name "$name" --cwd "$PWD" \
     env "${env_args[@]}" "${argv[@]}" >/dev/null
@@ -88,7 +84,7 @@ for spec in "$@"; do
   agent="${spec%%:*}" model=""
   [ "$spec" = "$agent" ] || model="${spec#*:}"
   command -v "$agent" >/dev/null 2>&1 || continue
-  name=$(pane_name "$agent" "$model")
+  name=$(pane_name "$agent" "$model" "" "$ws")
   start_pane "$name" "$agent" "$model"
   started+=("$name")
 done

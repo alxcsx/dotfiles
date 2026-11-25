@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared quota board so the orchestrator knows who is available.
-#   quota                          show every agent
-#   quota set <agent> ok|low|out [until]   record a status (until is free text)
+#   agent-quota                          show every agent
+#   agent-quota set <agent> ok|low|out [until]   record a status (until is free text)
 # omp is read live from `omp usage --json` (OpenCode Go 5h/weekly/monthly
 # windows). claude is estimated from its transcripts (output tokens in the last
 # 5h). agy and copilot expose no API, so their status is set by hand or by
@@ -15,7 +15,7 @@ touch "$STATE"
 if [ "${1:-}" = set ]; then
   [ $# -ge 3 ] || { sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
   agent="$2" status="$3" when="${4:--}"; when="${when// /_}"
-  case "$status" in ok | low | out) ;; *) echo "quota: status must be ok, low or out" >&2; exit 2 ;; esac
+  case "$status" in ok | low | out) ;; *) echo "agent-quota: status must be ok, low or out" >&2; exit 2 ;; esac
   grep -v "^$agent " "$STATE" >"$STATE.tmp" || true
   echo "$agent $status $when $(date +%s)" >>"$STATE.tmp"
   mv "$STATE.tmp" "$STATE"
@@ -47,7 +47,7 @@ printf '%-8s %-5s %s\n' agent state note
 read -r status note <<<"$(omp_usage)"
 [ "$status" = out ] && note="$note; free models only"
 printf '%-8s %-5s %s\n' omp "$status" "$note"
-for agent in agy claude copilot; do
+for agent in agy claude copilot codex; do
   line=$(grep "^$agent " "$STATE" || true)
   if [ -n "$line" ]; then
     read -r _ status when ts <<<"$line"

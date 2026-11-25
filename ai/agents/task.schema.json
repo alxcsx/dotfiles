@@ -9,6 +9,7 @@
     "context": { "type": "array", "items": { "type": "string" }, "description": "Paths to read; the agent reads nothing else." },
     "files": { "type": "array", "items": { "type": "string" }, "description": "Paths it may edit. Empty or missing means read-only." },
     "accept": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Commands that prove the work; the agent runs each and reports pass/fail." },
+    "effort": { "type": "string", "enum": ["none", "off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"], "description": "Optional reasoning/thinking effort level for the agent." },
     "report_max_lines": { "type": "integer", "minimum": 1, "default": 15 }
   }
 }

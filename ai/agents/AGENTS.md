@@ -1,20 +1,22 @@
 # Agent roster and budget rules
 
-Shared by every agent (omp, claude, agy, copilot). Find yourself in the table.
+Shared by every agent (omp, claude, agy, copilot, codex, feynman). Find yourself in the table.
 
 | Agent | Budget | Use for |
 |---|---|---|
 | `omp` | 5h/weekly/monthly limits; free models when out | paid: exploring, implementing, tests, refactors. Free models (weaker than haiku): trivial edits and lookups only |
-| `agy` | weekly quota | architecture, second opinions |
+| `agy` | weekly quota | architecture, second opinions, reviews |
 | `claude` | 5h windows, very tight | last resort: planning, hard debugging, reviewing diffs |
 | `copilot` | 200 credits/month | last resort: small cross-checks |
+| `codex` | budget TBD | final diff review (OpenAI family, independent of DeepSeek/Gemini/Claude); high-risk reviews only |
+| `feynman` | shares `omp` (`opencode-go`) quota | literature search, paper audits, research synthesis (no `:model` or `--effort` CLI flag) |
 
 ## Rules
 
 Small quotas everywhere: get the work done with the fewest tokens. The user
 tests and troubleshoots; do not spend credits on it.
 
-- Cheapest first: `omp`, then `agy`, then `claude`/`copilot`. Check `quota`
+- Cheapest first: `omp`, then `agy`, then `claude`/`copilot`. Check `agent-quota`
   before delegating; skip agents marked low or out.
 - Plan first for non-trivial work: a short plan (a few lines) with what to
   build and how it will be checked; do not iterate on it or get it reviewed.
@@ -34,18 +36,33 @@ tests and troubleshoots; do not spend credits on it.
 - Reports: at most 10 lines, `file:line` refs, what changed, what to test.
   Longer goes in `.agents/handoff/<topic>.md`; send the path.
 
+## Model routing
+
+| Model | Use for / Notes |
+|---|---|
+| `omp:deepseek-v4.1-flash` | default workhorse: implementation, scripts, infra, simple tests, refactors |
+| `omp:deepseek-v4-pro` | hard implementation tasks (performance tuning, complex analysis) |
+| `omp:hy4-flash-free` | short, well-scoped tasks (formatting, lookups, small edits) |
+| `omp:hy4-flash` | experimental, cheap; test only on small tasks |
+| `omp:longcat-2.5` | search/triage only; avoid prose generation (reports of loops and Chinese output). For long text use `deepseek-v4.1-flash`/`v4-pro` + human review |
+| `agy:neon`, `agy:hydrogen`, `agy:argon` | architecture, second opinions, reviews (`hydrogen` for technical/statistical/final diff review; `neon` for prose) |
+| `claude` / `copilot` | last resort: single pre-push diff review; `copilot` also for small cross-checks (e.g., verifying URLs/references) |
+| `codex` (`codex exec`) | final diff review when an independent OpenAI-family perspective is needed; high-risk reviews only |
+
+Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and `omp:glm-5.3-flash` (poor tool calling). Weak/free models never make design decisions or write conclusions; they only execute well-scoped tasks.
+
 ## Delegating (only when `HC_TERMINAL_ID` is set)
 
-- `ask <agent> "<task>"` is the default; it delegates in that agent's Herdr terminal; the answer
+- `ask [--effort <level>] <agent[:model]> <task...>` is the default; it delegates in that agent's Herdr terminal; the answer
   arrives as `REPORT(<agent>): ...`. When a task came from another agent,
-  finish with the reply command it gave.
+  finish with the reply command it gave. `--effort` maps to each agent's reasoning/thinking flag (`omp`, `claude`, `agy`, `copilot`, `codex`) and `agy` short names (`neon`, `hydrogen`, `argon`, `carbon`, `flash`) resolve to full `agy models` IDs (e.g., `gemini-4-argon-medium`).
 - `ask <agent>:<model> ...` targets (or starts) a pane for that model, e.g.
   `ask omp:deepseek-v4-pro`, `ask agy:argon`. Start several up front with
   `orch omp:deepseek-v4.1-flash omp:deepseek-v4-pro agy:hydrogen agy:argon`.
 - `ask <agent> --spec <file.json>` is optional, for tasks that need exact
   acceptance commands (`agents/task.schema.json`).
 - `ask --headless <agent> "<task>"` is a one-shot run (`omp`, `claude`, `copilot`).
-- `quota` shows each agent's status (omp live from `omp usage`); `quota set <agent> ok|low|out [until]`.
+- `agent-quota` shows each agent's status (omp live from `omp usage`); `agent-quota set <agent> ok|low|out [until]`.
 - One helper at a time; helpers never start more agents. Read-only unless the
   task asks for edits.
 

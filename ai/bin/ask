@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Delegate to another agent over Herdr core (hc), or run it headless.
-#   ask <agent[:model]> <task...>     send to its terminal, reply comes back
-#   ask --reply <terminal> <text...>  answer whoever delegated to you
-#   ask --headless <agent> <task...>  one-shot run, prints the answer
-#   ask [--headless] <agent> --spec <file.json>   structured task (agents/task.schema.json)
-# Agents: omp, claude, agy, copilot (see ~/.omp/agent/AGENTS.md).
+#   ask [--effort <level>] <agent[:model]> <task...>     send to its terminal, reply comes back
+#   ask --reply <terminal> <text...>                     answer whoever delegated to you
+#   ask --headless [--effort <level>] <agent[:model]> <task...>  one-shot run, prints the answer
+#   ask [--headless] [--effort <level>] <agent[:model]> --spec <file.json>
+# Agents: omp, claude, agy, copilot, codex, feynman (see ~/.omp/agent/AGENTS.md).
 set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")")" && pwd)
+# shellcheck source=_agents.sh
+. "$SCRIPT_DIR/_agents.sh"
 
 usage() {
   sed -n '2,7s/^# \{0,1\}//p' "$0" >&2
@@ -27,26 +31,20 @@ self_name() {
     grep . || echo "$HC_TERMINAL_ID"
 }
 
-# Same naming as orch: <agent>[-<model>]-<workspace folder>, max 32 chars.
-# $1 agent, $2 optional model.
-pane_name() {
-  local slug="" ws
-  [ -n "${2:-}" ] && slug="-$(printf '%s' "$2" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9_\n-' '-')"
-  ws=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -c 'A-Za-z0-9_\n-' '-')
-  printf '%s%s-%s' "$1" "$slug" "$ws" | cut -c1-32
-}
-
-# This workspace's pane for the agent (and model), else one named after it,
-# else (no model given) any live terminal running it.
+# This workspace's pane for the agent (and model/effort), else one named after it,
+# else (no model/effort given) any live terminal running it.
 find_terminal() {
   local name agent
-  for name in "$(pane_name "$1" "${2:-}")" "$1"; do
+  for name in "$(pane_name "$1" "${2:-}" "${3:-}")" "$1"; do
+    if [ "$name" = "$1" ] && { [ -n "${2:-}" ] || [ -n "${3:-}" ]; }; then
+      continue
+    fi
     if hc get "$name" >/dev/null 2>&1; then
       echo "$name"
       return
     fi
   done
-  [ -z "${2:-}" ] || return 0
+  [ -z "${2:-}" ] && [ -z "${3:-}" ] || return 0
   agent=$(herdr_agent "$1")
   hc ls --json 2>/dev/null | tr '{' '\n' |
     grep "\"agent\":\"$agent\"" | grep '"state":"live"' |
@@ -98,49 +96,114 @@ need_hc() {
   fi
 }
 
-[ $# -ge 2 ] || usage
+parse_target() {
+  agent="${1%%:*}"
+  model=""
+  [ "$1" = "$agent" ] || model="${1#*:}"
+  case "$agent" in
+  omp | claude | agy | copilot | codex | feynman) ;;
+  *)
+    echo "ask: unknown agent '$agent'" >&2
+    exit 1
+    ;;
+  esac
+}
 
-case "$1" in
---reply)
-  need_hc
-  target="$2"
-  shift 2
-  exec hc send "$target" "REPORT($(self_name)): $*"
-  ;;
---headless)
-  agent="$2"
-  shift 2
+headless=0
+effort=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --reply)
+    [ $# -ge 3 ] || usage
+    need_hc
+    target="$2"
+    shift 2
+    exec hc send "$target" "REPORT($(self_name)): $*"
+    ;;
+  --headless)
+    headless=1
+    shift
+    ;;
+  --effort)
+    [ $# -ge 2 ] || usage
+    effort="$2"
+    shift 2
+    ;;
+  --effort=*)
+    effort="${1#*=}"
+    shift
+    ;;
+  -h | --help) usage ;;
+  -*) usage ;;
+  *) break ;;
+  esac
+done
+
+[ $# -ge 2 ] || usage
+parse_target "$1"
+shift
+
+if [ -z "$effort" ] && [ "${1:-}" = --spec ] && [ -n "${2:-}" ] && command -v jq >/dev/null 2>&1; then
+  effort=$(jq -r '.effort // empty' "$2" 2>/dev/null || true)
+fi
+
+if [ "$headless" = 1 ]; then
   task=$(build_task "Reply in at most @N@ lines." "$@")
   case "$agent" in
-  omp) exec omp -p "$task" ;;
-  claude) exec claude -p --model haiku "$task" ;;
-  copilot) exec copilot -p "$task" -s ;;
+  omp)
+    argv=(omp -p "$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  claude)
+    argv=(claude -p)
+    [ -n "$model" ] || model=haiku
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    argv+=("$task")
+    exec "${argv[@]}"
+    ;;
+  copilot)
+    argv=(copilot -p "$task" -s)
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  agy)
+    argv=(agy -p "$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  codex)
+    argv=(codex exec)
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    argv+=("$task")
+    exec "${argv[@]}"
+    ;;
+  feynman)
+    argv=(feynman "--prompt=$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
   *)
     echo "ask: no headless mode for '$agent'" >&2
     exit 1
     ;;
   esac
-  ;;
--*) usage ;;
-esac
+fi
 
 need_hc
-agent="${1%%:*}" model=""
-[ "$1" = "$agent" ] || model="${1#*:}"
-shift
-case "$agent" in
-omp | claude | agy | copilot) ;;
-*)
-  echo "ask: unknown agent '$agent'" >&2
-  exit 1
-  ;;
-esac
 
-target=$(find_terminal "$agent" "$model")
+target=$(find_terminal "$agent" "$model" "$effort")
 if [ -z "$target" ]; then
-  target=$(pane_name "$agent" "$model")
+  target=$(pane_name "$agent" "$model" "$effort")
   argv=("$(command -v "$agent")")
-  [ -z "$model" ] || argv+=(--model "$model")
+  append_model_args "$agent" "$model" "$effort"
+  append_effort_args "$agent" "$effort"
   # hc run starts programs with the core's bare environment; pass ours.
   envs=()
   while IFS='=' read -r k _; do

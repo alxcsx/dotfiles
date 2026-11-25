@@ -119,7 +119,8 @@ step --skip-if '[ -f "$COPILOT_DIR/hooks/herdr-agent-state.sh" ]' \
 
 link_file -m "Install ask (agent delegation)" "$MODULE_DIR/bin/ask" "$BIN_DIR/ask"
 link_file -m "Install orch launcher" "$MODULE_DIR/bin/orch" "$BIN_DIR/orch"
-link_file -m "Install quota board" "$MODULE_DIR/bin/quota" "$BIN_DIR/quota"
+link_file -m "Install agent-quota board" "$MODULE_DIR/bin/agent-quota" "$BIN_DIR/agent-quota"
+step --run-if '[ -L "$BIN_DIR/quota" ]' "Remove old quota link" rm "$BIN_DIR/quota"
 link_file -m "Install agents-index" "$MODULE_DIR/bin/agents-index" "$BIN_DIR/agents-index"
 step --run-if '[ -L "$BIN_DIR/dev-orch" ]' "Remove old dev-orch link" rm "$BIN_DIR/dev-orch"
 
