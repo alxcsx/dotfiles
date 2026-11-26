@@ -1,6 +1,6 @@
 [Unit]
 Description=Read-only btrfs snapshot of @home (undo for accidental file loss)
-Documentation=file:///home/alex/dotfiles/ai/hermes/btrfs-snapshot.sh
+Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/btrfs-snapshot.sh
 ConditionPathIsMountPoint=/home
 
 [Service]

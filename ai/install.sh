@@ -137,8 +137,4 @@ step --run-if '[[ -t 0 ]] && command -v agy >/dev/null 2>&1 && ! agy_logged_in' 
   "Sign in to Antigravity CLI (agy), then run /exit" \
   agy
 
-## - Retire pi (replaced by omp) -----------------------------------------------
-# pi's standalone install, its credentials and its MCP link. Only once omp is
-# logged in, so OpenCode Go access is never lost.
-step --run-if '[ -d "$CONFIG_DIR/pi" ] && omp_logged_in' "Remove pi agent" \
-  rm -rf "$CONFIG_DIR/pi" "$CONFIG_DIR/mcp" "$HOME/bin/pi"
+# Pi is superseded by omp. Existing Pi config and credentials are left intact.

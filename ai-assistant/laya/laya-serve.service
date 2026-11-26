@@ -1,0 +1,36 @@
+[Unit]
+Description=Laya System One decision model (local routing / classification, port 58010)
+Documentation=https://laya-ai.com/
+After=network.target
+
+[Service]
+Type=simple
+
+# CPU on purpose. Laya auto-detected CUDA, OOM'd against llama-server's 5.5 GB,
+# and fell back to CPU anyway — with a scary warning on every start. Measure:
+#   CPU ~450 ms/decision.  GPU would be ~35 ms, but buying that needs ~1.6 GB of
+#   VRAM taken from llama-server, which costs far more than 0.4 s/decision saves.
+#   See PLAN.md decision log.
+Environment=LAYA_DEVICE=cpu
+
+# Loopback only. Laya sees task text, which may be private — never expose it.
+Environment=LAYA_HOST=127.0.0.1
+Environment=LAYA_PORT=58010
+
+# Load only what is used. Empty means all three checkpoints (~2.1 GB);
+# typed-decisions is a fine-tune we do not currently target.
+Environment=LAYA_MODELS=english,multilingual
+Environment=LAYA_PRELOAD=1
+
+# Must stay <= physical cores (14). torch degrades badly past that, and
+# llama-server is concurrently eating CPU for MoE experts via --n-cpu-moe.
+Environment=LAYA_THREADS=8
+
+ExecStart=%h/.local/share/laya/bin/laya-serve
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

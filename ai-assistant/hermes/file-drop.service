@@ -14,7 +14,7 @@ Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bi
 WorkingDirectory=%h/share
 # stdlib only, read-only by construction (GET/HEAD). No Range support: a resumed
 # or seekable download is not possible; the ceiling is fine for documents.
-ExecStart=/usr/bin/python3 %h/dotfiles/ai/hermes/file-drop.py --port 58100
+ExecStart=/usr/bin/python3 %h/dotfiles/ai-assistant/hermes/file-drop.py --port 58100
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=yes

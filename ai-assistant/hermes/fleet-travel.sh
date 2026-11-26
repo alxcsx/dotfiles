@@ -22,7 +22,7 @@
 # WC: never leave a running card across a suspend.
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 UNITS=(hermes-gateway llamacpp-daemon)
 DRAIN_TIMEOUT_S=${DRAIN_TIMEOUT_S:-900}
 

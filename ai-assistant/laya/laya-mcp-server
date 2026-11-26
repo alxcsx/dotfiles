@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# MCP stdio server for Laya, proxying to the persistent laya-serve unit.
+#
+# Without LAYA_BASE_URL the MCP server loads ~1.3 GB of weights into its own
+# process on every start — measured at ~32 s before the first tool call. With it,
+# the server is a thin HTTP proxy to laya-serve (POST /v1/systemone) and starts
+# immediately, sharing one loaded copy across every client.
+#
+# Start the backend with: systemctl --user start laya-serve
+# If it is down, calls fail; that is preferable to a silent 32 s stall.
+
+set -euo pipefail
+
+export LAYA_BASE_URL="${LAYA_BASE_URL:-http://127.0.0.1:58010}"
+export LAYA_DEVICE=cpu
+
+exec "$HOME/.local/share/laya/bin/laya-mcp-server" "$@"

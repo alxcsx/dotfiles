@@ -1,6 +1,6 @@
 [Unit]
 Description=Sanitizing egress proxy for remote LLM APIs (127.0.0.1:58020)
-Documentation=file:///home/alex/dotfiles/ai/hermes/egress-proxy.py
+Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/egress-proxy.py
 After=network-online.target
 
 [Service]
@@ -9,7 +9,7 @@ Type=simple
 # The '-' keeps the unit startable without the file (proxy then answers 502
 # with instructions instead of crashing).
 EnvironmentFile=-%h/.config/egress-proxy/env
-ExecStart=/usr/bin/python3 %h/dotfiles/ai/hermes/egress-proxy.py
+ExecStart=/usr/bin/python3 %h/dotfiles/ai-assistant/hermes/egress-proxy.py
 Restart=on-failure
 RestartSec=2
 

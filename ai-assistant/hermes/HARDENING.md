@@ -2,7 +2,7 @@
 
 Written 2026-11-07 after the `t_35165ee8` crash loop. Every claim below is from a
 command run on this box; the `file:line` refs are to
-`~/.hermes/hermes-agent` (a clean git checkout) and `~/dotfiles/ai/hermes`.
+`~/.hermes/hermes-agent` (a clean git checkout) and `~/dotfiles/ai-assistant/hermes`.
 
 ---
 
@@ -186,7 +186,7 @@ Five starvations latch the session permanently. Two lines of defence, both cheap
   ```
   sudo install -d -m 750 /etc/tg-approve
   sudo sh -c 'umask 077; printf %s "<BOT_TOKEN>" > /etc/tg-approve/token; printf %s "<CHAT_ID>" > /etc/tg-approve/chat_id'
-  sudo install -m 755 -o root -g root ~/dotfiles/ai/hermes/tg-approve.py /usr/local/sbin/tg-approve
+  sudo install -m 755 -o root -g root ~/dotfiles/ai-assistant/hermes/tg-approve.py /usr/local/sbin/tg-approve
   echo 'alex ALL=(root) NOPASSWD: /usr/local/sbin/tg-approve' | sudo tee /etc/sudoers.d/tg-approve
   sudo chmod 440 /etc/sudoers.d/tg-approve && sudo visudo -c
   sudo -n tg-approve --self-test

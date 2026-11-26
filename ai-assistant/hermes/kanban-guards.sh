@@ -18,7 +18,7 @@ set -uo pipefail
 
 export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 # shellcheck source=fleet.conf
 [ -f "$HERE/fleet.conf" ] && . "$HERE/fleet.conf"
 DEFAULT="${KANBAN_DEFAULT_MAX_RUNTIME:-7200}"

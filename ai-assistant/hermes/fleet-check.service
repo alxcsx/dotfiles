@@ -14,11 +14,11 @@ Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bi
 # kanban-guards.sh sets max_runtime_seconds on any active card lacking it. Without
 # it the dispatcher's terminator never fires — it filters on that column being
 # non-NULL and nothing was setting it, which is how a worker ran 4h36m.
-ExecStart=%h/dotfiles/ai/hermes/kanban-guards.sh
+ExecStart=%h/dotfiles/ai-assistant/hermes/kanban-guards.sh
 
 # fleet-notify.sh runs fleet-check and decides whether to speak. It sends when the
 # content CHANGES and re-sends an unchanged body only after 6h, because an alert
 # repeated on every 15-minute tick gets ignored — a persistent bad-assignee card was
 # re-notified dozens of times. It also clears its memory when the fleet goes healthy
 # again, so the next new problem is reported immediately.
-ExecStart=%h/dotfiles/ai/hermes/fleet-notify.sh
+ExecStart=%h/dotfiles/ai-assistant/hermes/fleet-notify.sh

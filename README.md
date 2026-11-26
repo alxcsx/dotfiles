@@ -12,6 +12,9 @@ Currently i'm using Arch and MacOS, but it should work with other distros.
 
 - `dot.sh` - entrypoint for install, uninstall, and status
 - `.utils/` - shared helpers used by the module scripts
+- `ai/` - OMP and remote-agent orchestration for development machines
+- `ai-assistant/` - optional Linux server tools for Hermes and local models
+  ([setup](ai-assistant/README.md))
 
 ## Usage
 

@@ -23,7 +23,7 @@ set -uo pipefail
 
 export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 STATE="$HOME/.local/state/hermes-fleet-notify"
 RE_NOTIFY_AFTER=$((24 * 3600))  # re-send an identical alert once a day
 DRY_RUN="${FLEET_NOTIFY_DRY_RUN:-0}"

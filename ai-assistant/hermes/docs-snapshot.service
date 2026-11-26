@@ -1,8 +1,8 @@
 [Unit]
 Description=Version the hand-maintained docs (PLAN.md, AGENTS.md, README.md)
-Documentation=file:///home/alex/dotfiles/ai/hermes/docs-snapshot.sh
+Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/docs-snapshot.sh
 
 [Service]
 Type=oneshot
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/bin/bash %h/dotfiles/ai/hermes/docs-snapshot.sh
+ExecStart=/bin/bash %h/dotfiles/ai-assistant/hermes/docs-snapshot.sh

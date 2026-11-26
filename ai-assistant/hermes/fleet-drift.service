@@ -10,4 +10,4 @@ Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bi
 # Drift only appears when a config is edited, so hourly is plenty.
 #
 # fleet-apply.sh --check exits 1 when any home differs from fleet.conf.
-ExecStart=/bin/bash -c 'out=$(%h/dotfiles/ai/hermes/fleet-apply.sh --check 2>&1); if [ $? -ne 0 ]; then { echo "fleet config drift"; echo; echo "$out"; } | %h/.local/bin/hermes send -t telegram -f -; fi'
+ExecStart=/bin/bash -c 'out=$(%h/dotfiles/ai-assistant/hermes/fleet-apply.sh --check 2>&1); if [ $? -ne 0 ]; then { echo "fleet config drift"; echo; echo "$out"; } | %h/.local/bin/hermes send -t telegram -f -; fi'

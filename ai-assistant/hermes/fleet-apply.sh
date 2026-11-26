@@ -9,7 +9,7 @@
 #   ./fleet-apply.sh --check       exit 1 if anything WOULD change (drift alarm)
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 # shellcheck source=fleet.conf
 source "$HERE/fleet.conf"
 

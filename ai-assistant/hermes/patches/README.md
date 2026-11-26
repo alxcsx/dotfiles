@@ -7,7 +7,7 @@ accept, and why each one cannot live outside the checkout.
 Re-apply after an update conflict:
 
 ```bash
-cd ~/.hermes/hermes-agent && git apply --3way ~/dotfiles/ai/hermes/patches/*.patch
+cd ~/.hermes/hermes-agent && git apply --3way ~/dotfiles/ai-assistant/hermes/patches/*.patch
 ```
 
 Verify (should print one rejection and two edits):

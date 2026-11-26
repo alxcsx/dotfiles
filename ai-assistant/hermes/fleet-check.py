@@ -331,7 +331,7 @@ def check_ddns(problems: list[str]) -> None:
     fail silently on a bad token or a Cloudflare API change. --dry-run prints
     what it *would* do without writing, so any "would update/create" is drift.
     """
-    script = os.path.expanduser("~/dotfiles/ai/hermes/cloudflare-ddns.py")
+    script = os.path.expanduser("~/dotfiles/ai-assistant/hermes/cloudflare-ddns.py")
     if not os.path.exists(script):
         return
     rc, out = _sh("/usr/bin/python3", script, "--dry-run", timeout=60)

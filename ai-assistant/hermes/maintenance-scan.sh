@@ -23,7 +23,7 @@ ac=$(wc -c < "$H/AGENTS.md" 2>/dev/null || echo 0)
 
 # --- 1. fleet availability (services, model, disk, tailnet, board, cron staleness).
 # Silent when healthy; fleet-notify already paged you if it is not.
-out=$(timeout 120 python3 "$H/dotfiles/ai/hermes/fleet-check.py" 2>&1)
+out=$(timeout 120 python3 "$H/dotfiles/ai-assistant/hermes/fleet-check.py" 2>&1)
 [ -n "$out" ] && f FAIL fleet-check "$(tr '\n' ' ' <<<"$out" | cut -c1-400)"
 
 # --- 2. processes nobody owns: (a) listening sockets with no unit and no container
