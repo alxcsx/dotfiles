@@ -51,6 +51,14 @@ hl.layer_rule({
   blur_popups = true,
 })
 
+hl.layer_rule({
+  name = "selection",
+  match = {
+    namespace = "^selection$",
+  },
+  no_anim = true,
+})
+
 hl.window_rule({
     match = { class = "dev.noctalia.Noctalia" },
     float = true,

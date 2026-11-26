@@ -1,0 +1,7 @@
+{
+  "model": "auto",
+  "autoTier": "efficiency",
+  "footer": {
+    "showQuota": true
+  }
+}

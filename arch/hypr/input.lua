@@ -38,6 +38,7 @@ hl.bind(c.mainMod .. " + T"		, hl.dsp.exec_cmd(c.terminal))
 hl.bind(c.mainMod .. " + B"		, hl.dsp.exec_cmd(c.browser))
 hl.bind(c.mainMod .. " + E"		, hl.dsp.exec_cmd(c.fileManager))
 hl.bind(c.mainMod .. "+Space"	, hl.dsp.exec_cmd(c.ipc .. "panel-toggle launcher"))
+hl.bind(c.mainMod .. " + period", hl.dsp.exec_cmd(c.ipc .. "panel-toggle launcher /emo"))
 hl.bind("ALT + TAB"				 	, hl.dsp.exec_cmd(c.ipc .. "window-switcher"))
 -- Move focus with mainMod + arrow keys
 hl.bind(c.mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
@@ -50,7 +51,10 @@ hl.bind(c.mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(c.mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Tools
-hl.bind(c.mainMod .. " + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp -d)" - | wl-copy'))
+hl.bind(
+    c.mainMod .. " + SHIFT + S",
+    hl.dsp.exec_cmd([[bash -c 'geom=$(slurp -d); [ -n "$geom" ] && grim -g "$geom" - | satty --filename -']])
+)
 
 -- Workspaces
 for i = 1, 10 do

@@ -7,16 +7,40 @@ if false; then
   source "../dot.sh"
 fi
 
-# Node/npm comes from the dev module (mise), and NPM_CONFIG_PREFIX/PI_CODING_AGENT_DIR
-# from dev/xdg_env.sh — install the dev module first.
+# Node comes from the dev module (mise), and CLAUDE_CONFIG_DIR/COPILOT_HOME
+# from dev/xdg_env.sh — install the dev module first. node merges the agent
+# settings files; npx runs the MCP servers.
 assert [ -n "$(command -v npm)" ] -- \
   "npm not found" \
   "Install the dev module first (it provides mise + node + npm env)"
 
-# --- Pi Agent ---
-require_custom -c "pi" -- \
-  npm install -g --ignore-scripts @earendil-works/pi-coding-agent
-
-# --- Local LLM backend (llama.cpp router server, port 58000) ---
+# --- Claude Code + Copilot CLI ---
 require_pkgs \
-  aur:llama.cpp-cuda-git
+  macos:cask:claude-code \
+  macos:cask:copilot-cli
+
+# --- Tools agents lean on: structural search, data/SQL, diffs, benchmarks ---
+# Prebuilt binaries via mise/uv: Homebrew has no bottles for most of these on
+# older macOS and would compile rust + llvm from source.
+# difftastic and duckdb come straight from GitHub releases: mise's default
+# (aqua) entries don't match their current macOS arm64 asset names.
+mise_tool() { require_custom -c "$1" -m "$2 (mise)" -- mise use --global "$2@latest"; }
+mise_tool ast-grep ast-grep
+mise_tool hyperfine hyperfine
+mise_tool yq yq
+mise_tool difft github:Wilfred/difftastic
+mise_tool duckdb github:duckdb/duckdb
+
+for tool in pgcli sqlfluff; do
+  require_custom -c "$tool" -m "$tool (uv)" -- uv tool install "$tool"
+done
+
+require_pkgs jq macos:scc
+
+# GDScript formatter/linter (gdformat, gdlint) for Godot 4 projects.
+require_custom -c "gdformat" -- \
+  uv tool install "gdtoolkit==4.*"
+
+# Claude Code usage per 5-hour window.
+require_custom -c "ccusage" -- \
+  npm install -g ccusage

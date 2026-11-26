@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# omp launcher. omp is a pi fork and honours PI_CODING_AGENT_DIR; pin it to
+# omp's own agent dir in case a stale value from pi is still exported.
+set -euo pipefail
+
+export PI_CODING_AGENT_DIR="${OMP_AGENT_DIR:-$HOME/.omp/agent}"
+
+# config.yml only enables opencode-go; do not let stray metered keys
+# authenticate another provider.
+unset OPENAI_API_KEY GEMINI_API_KEY
+
+exec "${XDG_DATA_HOME:-$HOME/.local/share}/omp/bin/omp" "$@"

@@ -34,6 +34,7 @@
 (require 'lang/lua)
 (require 'lang/sh)
 (require 'lang/elixir)
+(require 'lang/exil)
 (require 'lang/godot)
 (require 'lang/js-ts)
 (require 'lang/dotnet)

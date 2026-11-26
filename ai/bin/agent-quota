@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Shared quota board so the orchestrator knows who is available.
+#   agent-quota                          show every agent
+#   agent-quota set <agent> ok|low|out [until]   record a status (until is free text)
+# omp is read live from `omp usage --json` (OpenCode Go 5h/weekly/monthly
+# windows). claude is estimated from its transcripts (output tokens in the last
+# 5h). agy and copilot expose no API, so their status is set by hand or by
+# whoever hits a limit.
+set -euo pipefail
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/agents/quota"
+mkdir -p "$(dirname "$STATE")"
+touch "$STATE"
+
+if [ "${1:-}" = set ]; then
+  [ $# -ge 3 ] || { sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+  agent="$2" status="$3" when="${4:--}"; when="${when// /_}"
+  case "$status" in ok | low | out) ;; *) echo "agent-quota: status must be ok, low or out" >&2; exit 2 ;; esac
+  grep -v "^$agent " "$STATE" >"$STATE.tmp" || true
+  echo "$agent $status $when $(date +%s)" >>"$STATE.tmp"
+  mv "$STATE.tmp" "$STATE"
+  exit 0
+fi
+
+claude_5h() {
+  local dir="${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}/projects"
+  [ -d "$dir" ] || return 0
+  find "$dir" -name '*.jsonl' -mmin -300 -print0 2>/dev/null |
+    xargs -0 cat 2>/dev/null |
+    grep -o '"output_tokens":[0-9]*' |
+    awk -F: '{s+=$2} END {printf "%d output tokens in the last 5h", s}'
+}
+
+# state = out if any window is exhausted, low from 80% used, else ok.
+omp_usage() {
+  command -v jq >/dev/null 2>&1 || { echo "unknown no jq"; return; }
+  omp usage --json 2>/dev/null | jq -r '
+    [.reports[].limits[]] as $l
+    | if ($l | length) == 0 then "unknown no usage data"
+      else (if any($l[]; .status == "exhausted") then "out"
+            elif any($l[]; .amount.usedFraction >= 0.8) then "low" else "ok" end)
+        + " " + ([$l[] | "\(.window.id) \((.amount.usedFraction * 100) | floor)%"] | join(", "))
+      end' || echo "unknown omp usage failed"
+}
+
+printf '%-8s %-5s %s\n' agent state note
+read -r status note <<<"$(omp_usage)"
+[ "$status" = out ] && note="$note; free models only"
+printf '%-8s %-5s %s\n' omp "$status" "$note"
+for agent in agy claude copilot codex; do
+  line=$(grep "^$agent " "$STATE" || true)
+  if [ -n "$line" ]; then
+    read -r _ status when ts <<<"$line"
+    note="set $(( ($(date +%s) - ts) / 60 ))m ago, until $when"
+  else
+    status=ok note="not set"
+  fi
+  [ "$agent" = claude ] && note="$note; $(claude_5h)"
+  printf '%-8s %-5s %s\n' "$agent" "$status" "$note"
+done

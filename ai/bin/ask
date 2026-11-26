@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# Delegate to another agent over Herdr core (hc), or run it headless.
+#   ask [--effort <level>] <agent[:model]> <task...>     send to its terminal, reply comes back
+#   ask --reply <terminal> <text...>                     answer whoever delegated to you
+#   ask --headless [--effort <level>] <agent[:model]> <task...>  one-shot run, prints the answer
+#   ask [--headless] [--effort <level>] <agent[:model]> --spec <file.json>
+# Agents: omp, claude, agy, copilot, codex, feynman (see ~/.omp/agent/AGENTS.md).
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")")" && pwd)
+# shellcheck source=_agents.sh
+. "$SCRIPT_DIR/_agents.sh"
+
+usage() {
+  sed -n '2,7s/^# \{0,1\}//p' "$0" >&2
+  exit 2
+}
+
+# Herdr's detected agent id for each short name.
+herdr_agent() {
+  case "$1" in
+  claude) echo claude-code ;;
+  agy) echo antigravity ;;
+  *) echo "$1" ;;
+  esac
+}
+
+self_name() {
+  hc get "$HC_TERMINAL_ID" --json 2>/dev/null |
+    sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1 |
+    grep . || echo "$HC_TERMINAL_ID"
+}
+
+# This workspace's pane for the agent (and model/effort), else one named after it,
+# else (no model/effort given) any live terminal running it.
+find_terminal() {
+  local name agent
+  for name in "$(pane_name "$1" "${2:-}" "${3:-}")" "$1"; do
+    if [ "$name" = "$1" ] && { [ -n "${2:-}" ] || [ -n "${3:-}" ]; }; then
+      continue
+    fi
+    if hc get "$name" >/dev/null 2>&1; then
+      echo "$name"
+      return
+    fi
+  done
+  [ -z "${2:-}" ] && [ -z "${3:-}" ] || return 0
+  agent=$(herdr_agent "$1")
+  hc ls --json 2>/dev/null | tr '{' '\n' |
+    grep "\"agent\":\"$agent\"" | grep '"state":"live"' |
+    grep -v "\"address\":\"${HC_TERMINAL_ID:-}\"" |
+    sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true
+}
+
+# Validate a task spec and render it as the message to send. $2 is the reply
+# instruction appended at the end (it differs for terminal and headless runs).
+render_spec() {
+  local file="$1" reply="$2"
+  command -v jq >/dev/null 2>&1 || { echo "ask: --spec needs jq" >&2; exit 1; }
+  jq -e '
+    type == "object"
+    and (.goal | type == "string" and length > 0)
+    and (.accept | type == "array" and length > 0 and all(type == "string" and length > 0))
+    and ((.context // []) | type == "array")
+    and ((.files // []) | type == "array")
+    and ((.report_max_lines // 15) | type == "number")
+  ' "$file" >/dev/null 2>&1 ||
+    { echo "ask: invalid spec '$file': need goal and a non-empty accept[] of commands (agents/task.schema.json)" >&2; exit 1; }
+  jq -r --arg reply "$reply" '
+    (.report_max_lines // 15) as $n
+    | "Goal: \(.goal)\n"
+    + (if (.context // []) | length > 0 then "Read first: \(.context | join(", ")).\n" else "" end)
+    + (if (.files // []) | length > 0 then "You may edit only: \(.files | join(", ")).\n" else "Read-only: do not edit files.\n" end)
+    + "Acceptance: run each command, report pass or fail with the key output line.\n"
+    + (.accept | map("- " + .) | join("\n"))
+    + "\n" + ($reply | sub("@N@"; ($n | tostring)))
+  ' "$file"
+}
+
+# Build the task text from `--spec <file>` or the remaining words.
+build_task() {
+  local reply="$1"
+  shift
+  if [ "${1:-}" = --spec ]; then
+    [ -n "${2:-}" ] || usage
+    render_spec "$2" "$reply"
+  else
+    printf '%s\n%s' "$*" "${reply//@N@/15}"
+  fi
+}
+
+need_hc() {
+  if [ -z "${HC_TERMINAL_ID:-}" ]; then
+    echo "ask: not inside a Herdr terminal; use --headless" >&2
+    exit 1
+  fi
+}
+
+parse_target() {
+  agent="${1%%:*}"
+  model=""
+  [ "$1" = "$agent" ] || model="${1#*:}"
+  case "$agent" in
+  omp | claude | agy | copilot | codex | feynman) ;;
+  *)
+    echo "ask: unknown agent '$agent'" >&2
+    exit 1
+    ;;
+  esac
+}
+
+headless=0
+effort=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --reply)
+    [ $# -ge 3 ] || usage
+    need_hc
+    target="$2"
+    shift 2
+    exec hc send "$target" "REPORT($(self_name)): $*"
+    ;;
+  --headless)
+    headless=1
+    shift
+    ;;
+  --effort)
+    [ $# -ge 2 ] || usage
+    effort="$2"
+    shift 2
+    ;;
+  --effort=*)
+    effort="${1#*=}"
+    shift
+    ;;
+  -h | --help) usage ;;
+  -*) usage ;;
+  *) break ;;
+  esac
+done
+
+[ $# -ge 2 ] || usage
+parse_target "$1"
+shift
+
+if [ -z "$effort" ] && [ "${1:-}" = --spec ] && [ -n "${2:-}" ] && command -v jq >/dev/null 2>&1; then
+  effort=$(jq -r '.effort // empty' "$2" 2>/dev/null || true)
+fi
+
+if [ "$headless" = 1 ]; then
+  task=$(build_task "Reply in at most @N@ lines." "$@")
+  case "$agent" in
+  omp)
+    argv=(omp -p "$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  claude)
+    argv=(claude -p)
+    [ -n "$model" ] || model=haiku
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    argv+=("$task")
+    exec "${argv[@]}"
+    ;;
+  copilot)
+    argv=(copilot -p "$task" -s)
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  agy)
+    argv=(agy -p "$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  codex)
+    argv=(codex exec)
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    argv+=("$task")
+    exec "${argv[@]}"
+    ;;
+  feynman)
+    argv=(feynman "--prompt=$task")
+    append_model_args "$agent" "$model" "$effort"
+    append_effort_args "$agent" "$effort"
+    exec "${argv[@]}"
+    ;;
+  *)
+    echo "ask: no headless mode for '$agent'" >&2
+    exit 1
+    ;;
+  esac
+fi
+
+need_hc
+
+target=$(find_terminal "$agent" "$model" "$effort")
+if [ -z "$target" ]; then
+  target=$(pane_name "$agent" "$model" "$effort")
+  argv=("$(command -v "$agent")")
+  append_model_args "$agent" "$model" "$effort"
+  append_effort_args "$agent" "$effort"
+  # hc run starts programs with the core's bare environment; pass ours.
+  envs=()
+  while IFS='=' read -r k _; do
+    case "$k" in HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | ANTIGRAVITY_*) ;; *) envs+=("$k=${!k}") ;; esac
+  done < <(env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true)
+  hc run --bg --outlive-parent --name "$target" --cwd "$PWD" env "${envs[@]}" "${argv[@]}" >/dev/null
+  # A send during boot can be dropped.
+  hc wait "$target" >/dev/null
+fi
+
+task=$(build_task "When finished, reply by running: ask --reply $HC_TERMINAL_ID '<at most @N@ lines, or a .agents/handoff/ path>'" "$@")
+hc send "$target" "$task"
+echo "sent to $target; the reply will arrive as REPORT(...)"

@@ -33,7 +33,18 @@ widget_spacing = 12
     enabled = true
     fill = "surface_variant"
     id = "g2"
-    members = [ "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "keyboard_layout", "battery", "session" ]
+    members = [
+        "tray",
+        "notifications",
+        "clipboard",
+        "network",
+        "bluetooth",
+        "volume",
+        "brightness",
+        "keyboard_layout",
+        "battery",
+        "session"
+    ]
     opacity = 1.0
     padding = 10.0
 
@@ -61,6 +72,10 @@ corner_radius_scale = 0.5000000074505806
 font_family = "JetBrains Mono Medium"
 polkit_agent = true
 
+    [shell.keyboard_layout.custom_labels]
+    "English (US, intl., with dead keys)" = "US"
+    "Portuguese (Brazil)" = "PT"
+
     [shell.launcher]
     categories = false
     compact = true
@@ -69,10 +84,6 @@ polkit_agent = true
     [shell.panel]
     control_center_placement = "floating"
     open_near_click_control_center = true
-
-    [shell.keyboard_layout.custom_labels]
-    "English (US, intl., with dead keys)" = "US"
-    "Portuguese (Brazil)" = "PT"
 
 [theme]
 builtin = "Ayu"
@@ -111,6 +122,7 @@ detached_panel = true
 drawer = true
 drawer_columns = 1
 drawer_item_size = 25.0
+pinned = [ "tailscale" ]
 
 [widget.volume]
 show_label = false

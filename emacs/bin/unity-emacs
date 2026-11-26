@@ -40,5 +40,5 @@ if [ -n "$FILE" ]; then
     ARGS+=("$FILE")
 fi
 
-exec emacsclient -c -n -a "" "${ARGS[@]}"
+exec emacsclient -r -n -a "" "${ARGS[@]}"
 

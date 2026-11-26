@@ -79,7 +79,7 @@ widget_order = [ "lockscreen-login-box@DP-1", "lockscreen-login-box@HDMI-A-1" ]
     [lockscreen_widgets.widget."lockscreen-login-box@HDMI-A-1"]
     box_height = 196.0
     box_width = 810.0
-    cx = 960.0
+    cx = 960.00006103515625
     cy = 881.5
     output = "HDMI-A-1"
     placement_height = 2560.0

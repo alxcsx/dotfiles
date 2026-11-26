@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleAllowMixedLocalizations</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Emacs Client</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Text Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.text</string>
+				<string>public.plain-text</string>
+				<string>public.source-code</string>
+				<string>public.script</string>
+				<string>public.shell-script</string>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>droplet</string>
+	<key>CFBundleGetInfoString</key>
+	<string>Emacs Client</string>
+	<key>CFBundleIconFile</key>
+	<string>Emacs</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.gnu.EmacsClient</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Emacs Client</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleSignature</key>
+	<string>dplt</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Org Protocol</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>org-protocol</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<!-- Agent app: doesn't steal focus on launch, so AeroSpace assigns the new
+	     Emacs frame to the workspace that was actually focused. -->
+	<key>LSUIElement</key>
+	<true/>
+	<key>OSAAppletShowStartupScreen</key>
+	<false/>
+</dict>
+</plist>

@@ -51,6 +51,9 @@
   :ensure (eglot-booster :host github :repo "jdtsmith/eglot-booster")
   :if (executable-find "emacs-lsp-booster") ;; You need to install it to make it work.
   :after eglot
+  :init
+  ;; Emacs 30+ has native JSON parsing; avoid corrupting jsonrpc with bytecode translation
+  (setq eglot-booster-io-only t)
   :config
   (eglot-booster-mode))
 

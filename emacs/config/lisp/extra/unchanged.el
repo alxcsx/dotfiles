@@ -5,8 +5,11 @@
 ;;; the file on disk again, so VC/magit and kill-buffer stop lying.
 ;;; Code:
 
-(defconst my/unchanged-check-max-size 2000000
-  "Skip the comparison for buffers larger than this many characters.")
+(defconst my/unchanged-check-max-size 500000
+  "Skip the comparison for buffers larger than this many characters.
+The check reads the whole file from disk on every edit, which costs ~5ms
+plus a few MB of allocation for a 1.5MB file.  Above this size the
+modified flag just stays as Emacs set it.")
 
 (defvar-local my/unchanged-check-timer nil)
 
@@ -32,7 +35,7 @@
              (buffer-modified-p)
              (not (timerp my/unchanged-check-timer)))
     (setq my/unchanged-check-timer
-          (run-with-idle-timer 0.5 nil
+          (run-with-idle-timer 2.0 nil
                                (lambda (buf)
                                  (with-current-buffer buf
                                    (setq my/unchanged-check-timer nil))
