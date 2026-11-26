@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""mc-verified — list who has an AuthMe account and whether they skip the join gate."""
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+from datetime import datetime
+
+AUTHME_DB = "/home/alex/services/minecraft/data/plugins/AuthMe/authme.db"
+STATE = os.path.expanduser("~/.local/state/mc-sync-verified/granted.json")
+
+try:
+    con = sqlite3.connect(f"file:{AUTHME_DB}?mode=ro", uri=True, timeout=10)
+    rows = list(con.execute(
+        "SELECT username, lastlogin, regip FROM authme ORDER BY lastlogin DESC"))
+    con.close()
+except sqlite3.Error as e:
+    raise SystemExit(f"mc-verified: cannot read AuthMe db: {e}")
+
+try:
+    granted = set(json.load(open(STATE, encoding="utf-8")).get("granted", []))
+except (FileNotFoundError, json.JSONDecodeError):
+    granted = set()
+
+print(f"registered accounts: {len(rows)}   (bypass synced: {len(granted)})")
+for username, lastlogin, regip in rows:
+    mark = "exempt from the weekly password" if username.lower() in granted \
+           else "STILL ASKED for the weekly password"
+    try:  # AuthMe stores epoch milliseconds
+        last = datetime.fromtimestamp(lastlogin / 1000).strftime("%Y-%m-%d %H:%M") if lastlogin else "-"
+    except (TypeError, ValueError, OSError):
+        last = str(lastlogin)
+    print(f"  {username:20} {mark:38} last login: {last}  ip: {regip or '-'}")

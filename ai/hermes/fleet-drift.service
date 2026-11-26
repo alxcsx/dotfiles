@@ -1,0 +1,13 @@
+[Unit]
+Description=Detect drift between fleet.conf and the 8 profile configs
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Separate from fleet-check because this one invokes `hermes config get` ~120
+# times (15 keys x 8 homes) and is far too slow for a 15-minute cadence.
+# Drift only appears when a config is edited, so hourly is plenty.
+#
+# fleet-apply.sh --check exits 1 when any home differs from fleet.conf.
+ExecStart=/bin/bash -c 'out=$(%h/dotfiles/ai/hermes/fleet-apply.sh --check 2>&1); if [ $? -ne 0 ]; then { echo "fleet config drift"; echo; echo "$out"; } | %h/.local/bin/hermes send -t telegram -f -; fi'

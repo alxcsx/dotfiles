@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# sudo-queue — hand a privileged command to the human. NEVER executes anything.
+#
+# The agent's only power here is to park a script in a spool directory. A separate
+# root-owned service (sudo-approve.service) watches that directory, messages the human on
+# Telegram, and runs a script ONLY when that human replies `/run <id>` from their own
+# account. The agent can write the queue; it cannot approve it. That is the whole point.
+#
+#   sudo-queue add "<why this needs root>" <<'SH'
+#   install -m 644 /dev/stdin /etc/systemd/zram-generator.conf <<'CONF'
+#   [zram0]
+#   zram-size = 8192
+#   CONF
+#   SH
+#   sudo-queue list
+#
+# Writes: $SUDO_QUEUE_DIR (default ~/.local/state/sudo-queue) — world-inert files, mode 0600.
+set -uo pipefail
+D=${SUDO_QUEUE_DIR:-$HOME/.local/state/sudo-queue}
+mkdir -p "$D/done" 2>/dev/null
+
+case ${1:-} in
+add)
+  why=${2:?usage: sudo-queue add "<why>" < script.sh}
+  body=$(cat)
+  [ -n "${body//[[:space:]]/}" ] || { echo "empty script, nothing queued" >&2; exit 2; }
+  id=$(date +%H%M%S)
+  n=0; while [ -e "$D/$id.sh" ]; do n=$((n + 1)); id=$(date +%H%M%S)-$n; done
+  printf '%s\n' "$body" >"$D/$id.sh"
+  printf 'why: %s\nby: %s\nat: %s\n' "$why" "${HERMES_PROFILE:-alex}" "$(date -Is)" >"$D/$id.meta"
+  chmod 600 "$D/$id.sh" "$D/$id.meta"
+  echo "queued $id — approve on Telegram with: /run $id"
+  ;;
+list)
+  shopt -s nullglob
+  found=0
+  for f in "$D"/*.sh; do
+    found=1
+    id=$(basename "$f" .sh)
+    printf '%s  %s\n' "$id" "$(sed -n 's/^why: //p' "$D/$id.meta" 2>/dev/null | head -1)"
+    sed 's/^/      /' "$f" | head -4
+  done
+  [ "$found" = 1 ] || echo "nothing pending"
+  ;;
+*)
+  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+  exit 2
+  ;;
+esac

@@ -1,0 +1,24 @@
+[Unit]
+Description=Hermes fleet health check (services, model, disk, tailnet, board)
+After=hermes-gateway.service
+
+[Service]
+Type=oneshot
+
+# Same minimal-PATH treatment as the gateway unit: mise shims resolve node/uv/python3.
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Runs BEFORE the health check, so a card created without a cap is fixed before we
+# report on it. A oneshot unit runs multiple ExecStart lines in order.
+#
+# kanban-guards.sh sets max_runtime_seconds on any active card lacking it. Without
+# it the dispatcher's terminator never fires — it filters on that column being
+# non-NULL and nothing was setting it, which is how a worker ran 4h36m.
+ExecStart=%h/dotfiles/ai/hermes/kanban-guards.sh
+
+# fleet-notify.sh runs fleet-check and decides whether to speak. It sends when the
+# content CHANGES and re-sends an unchanged body only after 6h, because an alert
+# repeated on every 15-minute tick gets ignored — a persistent bad-assignee card was
+# re-notified dozens of times. It also clears its memory when the fleet goes healthy
+# again, so the next new problem is reported immediately.
+ExecStart=%h/dotfiles/ai/hermes/fleet-notify.sh

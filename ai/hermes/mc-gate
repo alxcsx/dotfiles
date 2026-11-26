@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""mc-gate — turn the shared weekly join password on or off.
+
+The server is public; PasswordWhitelist gates it with one rotating shared password
+on top of each player's own AuthMe account. Sometimes you want the gate gone —
+for a class session on the LAN, or during setup — and editing config or typing
+RCON by hand is how mistakes happen.
+
+    mc-gate            show whether the gate is on, and the current password
+    mc-gate off        disable it: anyone who can reach the port may join
+    mc-gate on         enable it again (the current password becomes required)
+    mc-gate status     same as no argument
+
+State lives in the plugin's own store, and is read back after every change — RCON
+output is a claim, the file is the fact. Turning the gate off also silences the
+weekly Telegram announcement in mc-rotate-password, so a disabled gate does not
+spam you every Monday.
+"""
+from __future__ import annotations
+
+import base64
+import os
+import subprocess
+import sys
+
+STORE = "/home/alex/services/minecraft/data/plugins/PasswordWhitelist/data/password.properties"
+CONTAINER = "minecraft"
+
+
+def read_store() -> dict[str, str]:
+    out: dict[str, str] = {}
+    try:
+        with open(STORE, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    out[k.strip()] = v.strip()
+    except FileNotFoundError:
+        sys.exit(f"mc-gate: no password store at {STORE} — is PasswordWhitelist installed?")
+    return out
+
+
+def current_password(st: dict[str, str]) -> str:
+    raw = st.get("password", "")
+    if not raw:
+        return "(none set)"
+    try:
+        return base64.b64decode(raw).decode("utf-16")
+    except Exception:
+        return "(unreadable)"
+
+
+def enabled(st: dict[str, str]) -> bool:
+    return st.get("enabled", "false").lower() == "true"
+
+
+def rcon(*args: str) -> bool:
+    try:
+        r = subprocess.run(["podman", "exec", CONTAINER, "rcon-cli", *args],
+                           capture_output=True, text=True, timeout=45)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def show() -> int:
+    st = read_store()
+    on = enabled(st)
+    print(f"shared password gate: {'ON  — a player needs the weekly password to join' if on else 'OFF — anyone who can reach the port may join'}")
+    print(f"current password:     {current_password(st)}")
+    print(f"weekly announcement:  {'on' if on else 'suppressed while the gate is off'}")
+    return 0
+
+
+def set_gate(want: bool) -> int:
+    st = read_store()
+    if enabled(st) == want:
+        print(f"already {'on' if want else 'off'} — nothing to do")
+        return show()
+    verb = "enable" if want else "disable"
+    # The plugin's own command names, not ours.
+    if not rcon("passwordwhitelist", verb):
+        print(f"mc-gate: RCON command failed — is the minecraft container running?", file=sys.stderr)
+        return 1
+    st = read_store()          # verify by effect, not by the command's reply
+    if enabled(st) != want:
+        print(f"mc-gate: asked to {verb}, but the store still says enabled="
+              f"{st.get('enabled')}. Check the server log.", file=sys.stderr)
+        return 1
+    return show()
+
+
+def main() -> int:
+    arg = (sys.argv[1] if len(sys.argv) > 1 else "status").lower()
+    if arg in ("status", "show"):
+        return show()
+    if arg in ("off", "disable", "false"):
+        return set_gate(False)
+    if arg in ("on", "enable", "true"):
+        return set_gate(True)
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

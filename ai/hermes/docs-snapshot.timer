@@ -1,0 +1,13 @@
+[Unit]
+Description=Snapshot doc changes every 5 minutes
+
+[Timer]
+# Frequent on purpose: the point is to bound the loss from a bad write to
+# minutes, not a day. Each run is a couple of file comparisons and only commits
+# when something actually changed.
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

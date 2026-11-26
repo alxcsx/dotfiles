@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the Cloudflare DDNS update every 5 minutes
+Documentation=file:///home/alex/dotfiles/ai/hermes/cloudflare-ddns.py
+
+[Timer]
+# First run shortly after boot, then every 5 minutes. Only the record-changing
+# run costs API calls — the steady state is a read that finds the record correct.
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

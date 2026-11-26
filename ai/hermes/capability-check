@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# capability-check — does this machine have what a task needs?
+#
+#   capability-check 7z pandoc xelatex              # commands
+#   capability-check polyglossia.sty lmroman10.otf  # files (TeX and friends)
+#
+#     ✓ 7z                /usr/bin/7z
+#     ✗ pandoc            missing — candidate package(s): pandoc-cli
+#     ✗ gloss-x.ldf       missing — provided by package: texlive-latexrecommended
+#
+# WHY THIS EXISTS: three dependency requests in a row named packages that do not
+# exist — `p7zip` (renamed to 7zip), `pandoc` (renamed to pandoc-cli), `cron` (not
+# a package here at all, and not wanted). Each cost a block, a human round trip,
+# and a stale note on the card that then misled the NEXT worker.
+#
+# Round 4 proved the same rule applies to FILES: the engine said "lmroman10-regular
+# not loadable" and "polyglossia.sty not found", and the worker guessed package
+# names for them (`texlive-lang-portuguese`, which does not exist) instead of
+# asking which package owns the file. For a file, the question is answerable two
+# ways with NO root and no guessing:
+#
+#   kpsewhich polyglossia.sty     # TeX: the exact check the engine itself does
+#   pacman -F polyglossia.sty     # any file: which package ships it
+#
+# (`pacman -F` needs the .files DB. If it is missing the sync is a one-time root
+# command: `sudo pacman -Fy` — this script says so rather than guessing.)
+#
+# Run this BEFORE blocking on a dependency, and put the commands it reports into
+# your block reason — a command or a FILE NAME can be checked mechanically, a
+# guessed package name cannot.
+set -uo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "usage: capability-check <command|file> [more...]" >&2
+  echo "  reports whether each is present, and the package that provides it if not" >&2
+  exit 2
+fi
+
+is_tex_file() {
+  case "$1" in
+    *.sty|*.cls|*.ldf|*.def|*.tfm|*.otf|*.ttf|*.pfb|*.fmt|*.bst|*.bib|*.clo) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Package that owns a file, from the pacman files DB. Prints "" when unknown.
+# Prints the files-DB hint once, to stderr, when the DB was never synced.
+hinted_db=0
+owner_of() {
+  local out
+  out=$(pacman -F -- "$1" 2>&1)
+  if printf '%s' "$out" | grep -q 'database file for'; then
+    if [ "$hinted_db" = 0 ]; then
+      hinted_db=1
+      echo "  ! files DB not synced — file→package lookups are unavailable." >&2
+      echo "    Fix once, as root:  sudo pacman -Fy" >&2
+    fi
+    return 0
+  fi
+  printf '%s' "$out" | awk '/^[A-Za-z0-9_.-]+\//{print $1; exit}' | sed 's|^[^/]*/||'
+}
+
+missing=0
+for arg in "$@"; do
+  # A path argument: only the basename matters for both checks.
+  base=${arg##*/}
+
+  # 1. TeX files: kpsewhich is the engine's own resolver and needs no root.
+  if is_tex_file "$base" && command -v kpsewhich >/dev/null 2>&1; then
+    if found=$(kpsewhich "$base" 2>/dev/null) && [ -n "$found" ]; then
+      printf '  ✓ %-22s %s\n' "$base" "$found"
+      continue
+    fi
+    missing=$((missing + 1))
+    if owner=$(owner_of "$base") && [ -n "$owner" ]; then
+      printf '  ✗ %-22s missing — provided by package: %s\n' "$base" "$owner"
+    else
+      printf '  ✗ %-22s missing — no package owns this file; name the FILE in your block\n' "$base"
+      printf '  %-24s reason (and what asked for it), not a package you guessed\n' ""
+    fi
+    continue
+  fi
+
+  # 2. Any other file-shaped argument.
+  if is_tex_file "$base" || [ "$arg" != "$base" ]; then
+    if owner=$(owner_of "$base") && [ -n "$owner" ]; then
+      if path=$(pacman -Qlq "$owner" 2>/dev/null | grep -m1 "/${base}\$"); then
+        printf '  ✓ %-22s %s\n' "$base" "$path"
+      else
+        missing=$((missing + 1))
+        printf '  ✗ %-22s missing — provided by package: %s\n' "$base" "$owner"
+      fi
+    else
+      missing=$((missing + 1))
+      printf '  ✗ %-22s missing — no package owns this file\n' "$base"
+    fi
+    continue
+  fi
+
+  # 3. A command.
+  if path=$(command -v "$arg" 2>/dev/null); then
+    printf '  ✓ %-22s %s\n' "$arg" "$path"
+    continue
+  fi
+  missing=$((missing + 1))
+  # Names/descriptions only: `pacman -F` is for files, not commands.
+  cands=$(pacman -Ss "^${arg}\$" 2>/dev/null | awk -F/ '/\//{print $2}' | awk '{print $1}' | head -3 | paste -sd' ' -)
+  [ -z "$cands" ] && cands=$(pacman -Ss "$arg" 2>/dev/null | awk -F/ '/\//{print $2}' | awk '{print $1}' | head -3 | paste -sd' ' -)
+  if [ -n "$cands" ]; then
+    printf '  ✗ %-22s missing — candidate package(s): %s\n' "$arg" "$cands"
+  else
+    printf '  ✗ %-22s missing — no package name matches; you could not determine a package for it\n' "$arg"
+  fi
+done
+
+echo
+if [ "$missing" -gt 0 ]; then
+  echo "  $missing missing. You cannot install packages (no sudo)."
+  echo "  Block ONCE, naming the commands/files above — not a package name you guessed."
+  echo "  Do not claim the task cannot proceed; block only the step that needs them."
+  exit 1
+fi
+echo "  all present — do not block on a dependency."

@@ -1,0 +1,10 @@
+[Unit]
+Description=Read-only btrfs snapshot of @home (undo for accidental file loss)
+Documentation=file:///home/alex/dotfiles/ai/hermes/btrfs-snapshot.sh
+ConditionPathIsMountPoint=/home
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/btrfs-snapshot
+Nice=10
+IOSchedulingClass=idle

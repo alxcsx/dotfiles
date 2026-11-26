@@ -1,0 +1,14 @@
+[Unit]
+Description=Sync weekly-password exemptions for registered Minecraft players
+
+[Timer]
+# Every minute: a player registers, then rejoins. Without this they would meet the
+# password dialog again until the sync ran, which reads as "the fix didn't work".
+# The run is cheap — it reads one small SQLite table and issues no RCON command
+# unless a new account appeared.
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

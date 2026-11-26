@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# svc — the one-command answer to "what runs on this box, on what port, with what data".
+#
+# Why this exists: asking an agent "how's jellyfin" from ~ used to cost 4-6 tool calls
+# (ls, docker ps, systemctl list-units, grep for a compose file, ss) and every tool call
+# re-sends the whole conversation — on this box that is the expensive part, not the reading.
+# One call returning live truth beats a doc, because a doc drifts: README claimed nothing
+# here was public, months after two things were.
+#
+# Derived, not hardcoded, so it cannot go stale: systemd ports from ss + the owning pid's
+# cgroup, container ports and data dirs from podman itself.
+#   svc            status, ports and data per service, one screen
+#   svc <name>     the exact log / restart / shell commands for one service
+#
+# ponytail: rootless host-networked containers show NO owner in `ss -ltnp` (the socket is
+# in a user namespace), which is why container ports come from podman and not from the
+# socket table. Don't "fix" that back.
+set -uo pipefail
+want=${1:-}
+SS=$(ss -ltnpH 2>/dev/null)
+
+declare -A who
+while read -r pid; do
+  [ -r /proc/$pid/cgroup ] || continue
+  cg=$(cut -d: -f3 /proc/$pid/cgroup); base=${cg##*/}
+  if [[ $cg =~ libpod-(payload-)?([0-9a-f]{12}) ]]; then who[$pid]=${BASH_REMATCH[2]}
+  elif [[ $base == *.service ]]; then who[$pid]=$base
+  fi
+done < <(grep -oE 'pid=[0-9]+' <<<"$SS" | cut -d= -f2 | sort -u)
+
+ports() { # $1 = unit name -> ":4105 :4100"
+  local pid
+  for pid in "${!who[@]}"; do
+    [ "${who[$pid]}" = "$1" ] || continue
+    grep "pid=$pid," <<<"$SS" | awk '{split($4,a,":"); print ":" a[length(a)]}'
+  done | sort -u | paste -sd' '
+}
+
+declare -A cid cnet cdata cports
+while IFS=$'\t' read -r n i; do cid[$n]=${i:0:12}; done < <(podman ps -a --format '{{.Names}}\t{{.ID}}' 2>/dev/null)
+if ((${#cid[@]})); then
+  while IFS='|' read -r name mode srcs; do
+    [[ -n ${cid[$name]:-} ]] || continue
+    cnet[$name]=$mode
+    vols=$(grep -c 'storage/volumes/' <<<"$srcs")
+    dirs=$(tr ',' '\n' <<<"$srcs" | grep -vE 'storage/volumes/|podman.sock|^$' |
+           sed "s|$HOME|~|; s|/$||" | paste -sd' ')
+    cdata[$name]="$([[ $vols -gt 0 ]] && echo "vol×$vols ")${dirs:--}"
+  done < <(podman inspect --format '{{.Name}}|{{.HostConfig.NetworkMode}}|{{range .Mounts}}{{.Source}},{{end}}' "${cid[@]}" 2>/dev/null)
+  while IFS=$'\t' read -r n p; do cports[$n]=$p; done < <(podman ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null)
+fi
+
+cports_str() { # $1 = container name. Host-networked containers expose nothing in podman's
+  # view but bind whatever the app picks (exoforge's 4N05 never appears here) — say so.
+  if [ "${cnet[$1]:-}" = host ]; then echo host-net; return; fi
+  tr ',' '\n' <<<"${cports[$1]:-}" | sed 's|0\.0\.0\.0:||; s|\[::\]:||' | grep -v '^$' | paste -sd' '
+}
+
+row() { # name kind state ports data
+  printf '  %-6s %-24s %-8s %-16s %s\n' "$3" "$1" "$2" "${4:--}" "${5:--}"
+}
+hdr() { printf '  %-6s %-24s %-8s %-16s %s\n' STATE NAME KIND PORTS DATA; }
+
+if [ -n "$want" ]; then
+  want=${want%.service}
+  if [[ -n ${cid[$want]:-} ]]; then
+    u=~/.config/containers/systemd/$want.container; d=""
+    [ -d "$HOME/services/$want" ] && d=" — stack dir: ~/services/$want"
+    echo "container $want$([ -f "$u" ] && echo "   (quadlet: ${u/$HOME/\~})")$d"
+    echo "  logs     podman logs --tail 100 -f $want"
+    echo "  restart  podman restart $want"
+    echo "  shell    podman exec -it $want sh"
+    echo "  ports    $(cports_str "$want")"
+    echo "  data     ${cdata[$want]:-none}"
+    [ "$want" = minecraft ] && echo "  live     podman exec minecraft rcon-cli <cmd>   (mc-send-to-console does NOT work)"
+  elif systemctl --user cat "$want.service" >/dev/null 2>&1; then
+    echo "unit $want.service"
+    echo "  status   systemctl --user status $want"
+    echo "  logs     journalctl --user -u $want -n 100 -f"
+    echo "  restart  systemctl --user restart $want"
+    echo "  ports    $(ports "$want.service")"
+  else
+    echo "unknown: $want — run \`svc\` for the list" >&2; exit 2
+  fi
+  exit 0
+fi
+
+echo "SYSTEMD (user, running)"
+hdr
+for u in $(systemctl --user list-units --type=service --state=running --no-legend --plain | awk '{print $1}'); do
+  name=${u%.service}
+  case $name in pipewire*|wireplumber*|xdg-*|dbus*|gnome-keyring*|gvfs*) continue;; esac
+  [[ $name =~ ^[0-9a-f]{64}- ]] && continue                       # podman healthcheck timers
+  [ -n "${cid[$name]:-}" ] && continue                              # quadlets: shown under PODMAN
+  case $name in
+    hermes*|egress*|file-drop) d='~/.hermes' ;;
+    llamacpp*) d='~/.config/llamacpp/models' ;;
+    *) d=${cdata[$name]:--} ;;
+  esac
+  row "$name" systemd active "$(ports "$u")" "$d"
+done
+echo "PODMAN"
+hdr
+for n in $(printf '%s\n' "${!cid[@]}" | sort); do
+  podman ps --format '{{.Names}}' 2>/dev/null | grep -qx "$n" && st=up || st=down
+  row "$n" podman "$st" "$(cports_str "$n")" "${cdata[$n]:--}"
+done
+# Listeners owned by no unit and no container: the usual suspect when something feels slow.
+# passt/pasta is podman's rootless port helper — it is the container, not a stray process.
+unowned=$(grep -oE 'pid=[0-9]+' <<<"$SS" | cut -d= -f2 | sort -u | while read -r pid; do
+  [ -n "${who[$pid]:-}" ] && continue
+  case $(ps -o comm= -p "$pid" 2>/dev/null) in passt*|pasta*|tailscale*|sshd*) continue;; esac
+  grep "pid=$pid," <<<"$SS" | awk -v p="$pid" '{split($4,a,":"); print ":" a[length(a)] "(" p ")"}'
+done | paste -sd' ')
+[ -n "$unowned" ] && echo "stray listeners (no unit, no container — hand-started): $unowned"
+# Privileged work waiting on the human: so an agent checks before queueing a duplicate.
+q=$HOME/.local/state/sudo-queue
+if compgen -G "$q/*.sh" >/dev/null; then
+  echo "sudo queue: $(cd "$q" && printf '%s ' *.sh | sed 's/\.sh//g')— approve on Telegram (/pending, /run <id>)"
+fi
+echo "TIMERS: systemctl --user list-timers   |   floor plan + measured baselines: ~/README.md"

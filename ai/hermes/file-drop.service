@@ -1,0 +1,24 @@
+[Unit]
+Description=File drop — serves ~/share on 127.0.0.1:58100 for tailnet download links
+# Never public: bound to loopback, published only through `tailscale serve`.
+# The listing is file-drop.py (2026-10-22) — `-m http.server` shows bare names with no
+# sizes, dates, path or filter. Self-check: `python3 file-drop.py --selftest`.
+
+[Service]
+Type=simple
+Environment=LANG=C.UTF-8
+Environment=PYTHONUTF8=1
+# ^ without these the unit runs in the C locale, Python's filesystem encoding
+# falls back to ASCII, and every accented filename 404s — measured here.
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+WorkingDirectory=%h/share
+# stdlib only, read-only by construction (GET/HEAD). No Range support: a resumed
+# or seekable download is not possible; the ceiling is fine for documents.
+ExecStart=/usr/bin/python3 %h/dotfiles/ai/hermes/file-drop.py --port 58100
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

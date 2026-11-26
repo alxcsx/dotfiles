@@ -1,0 +1,28 @@
+[Unit]
+Description=sudo-approve — run queued privileged scripts only when the human says /run
+Documentation=file:/home/alex/dotfiles/arch_server/sudo-queue/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/sudo-approve/env
+ExecStart=/usr/bin/python3 /home/alex/dotfiles/arch_server/sudo-queue/sudo-approve.py
+Restart=always
+RestartSec=5
+# Long-poll drop on a flaky link is expected, not a crash loop to page about.
+StartLimitIntervalSec=0
+# The service runs arbitrary operator-approved root commands by design, so most sandboxing
+# is impossible: it needs /etc, /usr and the queue in /home/alex. What can be closed is
+# closed — no privilege escalation, private /tmp, no new device nodes, capped output.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=no
+ProtectControlGroups=no
+ProtectHome=no
+LogRateLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

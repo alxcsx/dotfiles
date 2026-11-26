@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""wan-check — ask the internet whether this machine's port is actually reachable.
+
+Why this exists: a correct A record proves nothing. DDNS can be perfectly current
+while inbound still fails, because of ISP CGNAT, a missing port-forward, or a
+firewall dropping the packets. The only honest test is a connection attempt from
+outside, and this machine cannot make one from inside its own NAT.
+
+It uses check-host.net's public probe nodes (several countries), so the answer is
+independent of this network.
+
+Usage:
+    wan-check                 # probe the public IP on 25565 (Minecraft)
+    wan-check 8443            # probe another port
+    wan-check 25565 1.2.3.4   # probe an explicit address
+
+Exit codes: 0 = at least one node connected; 1 = all nodes failed; 2 = usage error.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+BASE = "https://check-host.net"
+PORTS = {"25565": "Minecraft", "443": "https", "80": "http"}
+
+
+def get(url: str) -> dict:
+    # The probe API wants a literal colon in host:port and rejects the default
+    # urllib User-Agent with a 403.
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/json",
+        "User-Agent": "curl/8.7.1",
+    })
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read())
+
+
+def public_ipv4() -> str:
+    for url in ("https://api.ipify.org", "https://ipv4.icanhazip.com"):
+        try:
+            with urllib.request.urlopen(url, timeout=10) as r:
+                ip = r.read().decode().strip().split()[0]
+            if ip:
+                return ip
+        except Exception:
+            continue
+    sys.exit("wan-check: could not determine the public IPv4")
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if args and args[0] in ("-h", "--help"):
+        print(__doc__)
+        return 2
+    port = args[0] if args else "25565"
+    ip = args[1] if len(args) > 1 else public_ipv4()
+    if not port.isdigit() or not all(c.isdigit() or c == "." for c in ip):
+        print("wan-check: port must be numeric and ip must be an IPv4 address")
+        return 2
+    label = PORTS.get(port, "tcp")
+    target = f"{ip}:{port}"
+    print(f"probing {target} ({label}) from external nodes — this takes ~20s")
+
+    try:
+        start = get(f"{BASE}/check-tcp?host={target}&max_nodes=4")
+    except Exception as e:
+        print(f"wan-check: probe service unreachable: {e}")
+        return 1
+    rid = start.get("request_id")
+    if not rid:
+        print(f"wan-check: unexpected response: {start}")
+        return 1
+
+    # Poll until every node reports, or give up after ~40s.
+    results: dict = {}
+    for _ in range(13):
+        time.sleep(3)
+        try:
+            results = get(f"{BASE}/check-result/{rid}")
+        except Exception:
+            continue
+        if results and all(v is not None for v in results.values()):
+            break
+
+    ok = 0
+    for node, res in sorted(results.items()):
+        country = (start.get("nodes", {}).get(node) or ["?", "?", "?"])[1]
+        if not res:
+            print(f"  {country:>12}  pending/no answer")
+            continue
+        entry = res[0] if isinstance(res, list) else res
+        if isinstance(entry, dict) and entry.get("error"):
+            print(f"  {country:>12}  FAIL  {entry['error']}")
+        elif isinstance(entry, dict) and entry.get("time") is not None:
+            print(f"  {country:>12}  OK    {entry['time']:.3f}s")
+            ok += 1
+        else:
+            print(f"  {country:>12}  {entry}")
+
+    print(f"\nreport: {start.get('permanent_link', '(none)')}")
+    if ok:
+        print(f"reachable from {ok} node(s) — inbound works")
+        return 0
+    print("NOT reachable from outside. Most likely causes, in order:\n"
+          "  1. no port-forward on the router for this port\n"
+          "  2. ufw still dropping it (check: sudo ufw status | grep " + port + ")\n"
+          "  3. ISP CGNAT — compare the router's WAN IP with the public IP above")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# k — address kanban tasks by name instead of by `t_<hex>`.
+#
+#   k list                     open tasks, with their ids
+#   k show minecraft           resolve "minecraft" -> the id, then show it
+#   k log minecraft            any kanban subcommand works
+#   k complete minecraft
+#   k alias minecraft mc       pin a short name so "mc" works from now on
+#
+# WHY A WRAPPER AND NOT A REAL SLUG
+#
+# Hermes has no slug column. `_new_task_id()` in hermes_cli/kanban_db.py generates
+# `t_<hex>` as the PRIMARY KEY, and "slug" in that module refers to *boards*, not
+# tasks. Patching the schema would be undone by `hermes update`.
+#
+# But the id is only used for ADDRESSING — every command takes an id and nothing
+# else depends on its shape. So resolution belongs outside Hermes, where it costs
+# nothing to change and cannot be clobbered.
+#
+# Matching is a case-insensitive substring on the title, plus any alias you pin,
+# so `k show minecraft` finds "Design and implement mod-capable Minecraft server".
+# That is how people actually refer to work — they don't want to invent a slug,
+# they want to not type a hex string.
+set -uo pipefail
+
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ALIASES="$HOME/.config/kanban-aliases.tsv"
+
+_hermes() { command hermes "$@"; }
+
+# task list as "id<TAB>status<TAB>assignee<TAB>title"
+_rows() {
+  _hermes kanban list --json 2>/dev/null | python3 -c '
+import json,sys
+try: ts=json.load(sys.stdin)
+except Exception: sys.exit(0)
+for t in ts:
+    print("\t".join([str(t.get("id","")), str(t.get("status","")),
+                     str(t.get("assignee") or "-"), str(t.get("title") or "")]))
+'
+}
+
+# fragment -> id, or a diagnostic on stderr. Exit 0 only on a unique match.
+_resolve() {
+  local frag="$1"
+  # already an id: pass straight through
+  case "$frag" in t_[0-9a-f]*) echo "$frag"; return 0 ;; esac
+
+  local f low matches
+  low=$(printf '%s' "$frag" | tr '[:upper:]' '[:lower:]')
+
+  # a pinned alias wins if present
+  if [ -f "$ALIASES" ]; then
+    local hit
+    hit=$(awk -F'\t' -v k="$low" 'tolower($1)==k {print $2; exit}' "$ALIASES")
+    if [ -n "$hit" ]; then echo "$hit"; return 0; fi
+  fi
+
+  matches=$(  # tickets whose title contains the fragment, or whose words start with it
+    _rows | python3 -c '
+import sys
+low = sys.argv[1]
+rows = [l.rstrip("\n").split("\t") for l in sys.stdin if l.strip()]
+def hit(title):
+    t = title.lower()
+    if low in t: return True
+    return any(w.startswith(low) for w in t.replace("-", " ").split())
+for r in rows:
+    if len(r) >= 4 and hit(r[3]):
+        print(r[0] + "\t" + r[1] + "\t" + r[2] + "\t" + r[3])
+' "$low"
+  )
+
+  local n
+  n=$(printf '%s' "$matches" | grep -c . 2>/dev/null || echo 0)
+  case "$n" in
+    0)
+      echo "k: no task matches '$frag'." >&2
+      echo "   try: k list" >&2
+      return 2 ;;
+    1)
+      local id
+      id=$(printf '%s' "$matches" | cut -f1)
+      printf 'k: %s -> %s\n' "$frag" "$id" >&2
+      echo "$id"; return 0 ;;
+    *)
+      echo "k: '$frag' matches $n tasks — be more specific:" >&2
+      printf '%s\n' "$matches" | awk -F'\t' '{printf "   %-14s %-9s %s\n", $1, $2, $4}' >&2
+      return 2 ;;
+  esac
+}
+
+cmd_list() {
+  _rows | awk -F'\t' 'NF>=4 {printf "  %-14s %-9s %-12s %s\n", $1, $2, $3, $4}'
+  echo
+  echo "  address these as:  k show <part of the title>"
+}
+
+cmd_alias() {
+  local name="${1:-}" id="${2:-}"
+  [ -n "$name" ] && [ -n "$id" ] || { echo "usage: k alias <name> <fragment|id>" >&2; exit 2; }
+  local resolved
+  resolved=$(_resolve "$id") || exit 2
+  mkdir -p "$(dirname "$ALIASES")"
+  # replace any existing row for this name
+  if [ -f "$ALIASES" ]; then
+    grep -v -i -F "$name	" "$ALIASES" >"$ALIASES.tmp" 2>/dev/null || true
+    mv "$ALIASES.tmp" "$ALIASES"
+  fi
+  printf '%s\t%s\n' "$name" "$resolved" >>"$ALIASES"
+  echo "k: '$name' -> $resolved"
+}
+
+case "${1:-}" in
+  ""|list|ls) cmd_list ;;
+  alias) shift; cmd_alias "$@" ;;
+  *)
+    sub="$1"; shift
+    [ $# -ge 1 ] || { echo "usage: k <subcommand> <fragment> [args...]" >&2; exit 2; }
+    frag="$1"; shift
+    id=$(_resolve "$frag") || exit 2
+    # NOT `exec`: exec needs a real executable, and _hermes is a shell function.
+    _hermes kanban "$sub" "$id" "$@"
+    ;;
+esac

@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily restic backup of the agent fleet
+
+[Timer]
+# 04:00 — the model server is idle and nothing on the board is mid-task.
+OnCalendar=*-*-* 04:00:00
+# If the machine was off or suspended at 04:00 (travelling), run once on return
+# rather than silently skipping the day.
+Persistent=true
+AccuracySec=5min
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

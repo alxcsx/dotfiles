@@ -1,0 +1,11 @@
+[Unit]
+Description=Grant the weekly-password bypass to Minecraft players with an account
+Documentation=file:///home/alex/dotfiles/ai/hermes/mc-sync-verified
+After=minecraft.service
+
+[Service]
+Type=oneshot
+# Needs podman + python3 only; no ~/.local/bin helpers are called, so the default
+# PATH is fine.
+ExecStart=/usr/bin/python3 %h/dotfiles/ai/hermes/mc-sync-verified
+TimeoutStartSec=120

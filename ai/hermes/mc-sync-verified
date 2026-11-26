@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""mc-sync-verified — registered players skip the weekly join password.
+
+Why: PasswordWhitelist gates EVERY join, including players who already have an
+AuthMe account. It has exactly one escape hatch — the `passwordwhitelist.exclude`
+permission — and no way to say "registered players only". So this bridges the two:
+it reads AuthMe's account database and grants that permission to each account.
+
+Effect:
+  new player   -> weekly password dialog -> /register -> account
+  that player, next join -> no dialog, just /login
+
+Grants are idempotent. A state file records who has already been granted so the
+timer issues no RCON commands when nothing has changed.
+
+Note: LuckyPerms command OUTPUT is invisible over RCON on this build, so success
+is verified by the command having no error and by the state file — not by
+reading a reply. Use `mc-verified` to list who has been granted.
+
+Usage: mc-sync-verified [--dry-run] [--all]
+  --dry-run  show what would be granted, change nothing
+  --all      re-grant for every registered account (ignores the state file)
+"""
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import subprocess
+import sys
+
+AUTHME_DB = "/home/alex/services/minecraft/data/plugins/AuthMe/authme.db"
+STATE = os.path.expanduser("~/.local/state/mc-sync-verified/granted.json")
+PERMISSION = "passwordwhitelist.exclude"
+
+
+def registered() -> set[str]:
+    """Lowercased usernames from AuthMe's account table."""
+    try:
+        con = sqlite3.connect(f"file:{AUTHME_DB}?mode=ro", uri=True, timeout=10)
+    except sqlite3.Error as e:
+        print(f"mc-sync-verified: cannot open AuthMe db: {e}", file=sys.stderr)
+        return set()
+    try:
+        return {row[0].lower() for row in con.execute("SELECT username FROM authme")}
+    except sqlite3.Error as e:
+        # The server may hold a write lock mid-registration; next tick will do.
+        print(f"mc-sync-verified: query failed ({e}); will retry next run", file=sys.stderr)
+        return set()
+    finally:
+        con.close()
+
+
+def load_state() -> set[str]:
+    try:
+        with open(STATE, encoding="utf-8") as fh:
+            return set(json.load(fh).get("granted", []))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
+def save_state(names: set[str]) -> None:
+    os.makedirs(os.path.dirname(STATE), exist_ok=True)
+    tmp = STATE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"granted": sorted(names)}, fh, indent=1)
+    os.replace(tmp, STATE)
+
+
+def rcon(cmd: list[str]) -> bool:
+    try:
+        r = subprocess.run(["podman", "exec", "minecraft", "rcon-cli", *cmd],
+                           capture_output=True, text=True, timeout=30)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def main() -> int:
+    dry = "--dry-run" in sys.argv
+    force = "--all" in sys.argv
+
+    accounts = registered()
+    if not accounts:
+        return 0
+
+    granted = set() if force else load_state()
+    todo = sorted(accounts - granted)
+    if not todo:
+        print(f"up to date: {len(accounts)} registered account(s), nothing to grant")
+        return 0
+
+    # If the container is not running there is no point issuing commands, and we
+    # must not record them as granted.
+    if not dry and not rcon(["list"]):
+        print("mc-sync-verified: minecraft is not reachable over rcon", file=sys.stderr)
+        return 1
+
+    failed = []
+    for name in todo:
+        if dry:
+            print(f"would grant {PERMISSION} to {name}")
+            continue
+        # Safe to pass through exec (no shell): the name comes from AuthMe, which
+        # already restricts usernames to [a-zA-Z0-9_].
+        if rcon(["lp", "user", name, "permission", "set", PERMISSION, "true"]):
+            print(f"granted to {name}")
+        else:
+            failed.append(name)
+
+    if not dry:
+        # Record successes only, so a failure is retried on the next tick.
+        save_state(granted | (set(todo) - set(failed)))
+    if failed:
+        print(f"failed for: {', '.join(failed)}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

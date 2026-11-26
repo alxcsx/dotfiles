@@ -1,0 +1,30 @@
+[Unit]
+Description=Hermes web dashboard (loopback only — reach it via `tailscale serve` or an SSH tunnel)
+Documentation=https://hermes-agent.nousresearch.com/docs
+After=hermes-gateway.service
+
+[Service]
+# Type=simple, not oneshot. Under a TTY the launcher forks and detaches, but under
+# systemd it stays in the foreground — an earlier oneshot attempt logged
+# HERMES_DASHBOARD_READY and was then killed by TimeoutStartSec for never exiting.
+# systemd tracks the foreground process directly, so stop/restart just work.
+Type=simple
+
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Binds 0.0.0.0 so BOTH routes work: directly on the tailnet IP, and later via
+# `tailscale serve` (which proxies 127.0.0.1). The LAN is not exposed — ufw's
+# default INPUT policy is DROP with only tailscale0:22/443 allowed, and the rule
+# you add for 9119 is scoped `in on tailscale0`.
+#
+# A non-loopback bind FORCES authentication (Hermes' June-2026 hardening; the old
+# --insecure bypass is a no-op). dashboard.basic_auth is configured, so the gate
+# engages — verified by a 401 from an unauthenticated request.
+ExecStart=%h/.local/bin/hermes dashboard --no-open --host 0.0.0.0
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

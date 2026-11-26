@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# exo-healthguard — restart an exoforge test instance whose healthcheck has gone red.
+#
+# Why this exists: docker/podman restarts on *exit*, not on *unhealthy*. When an extension
+# crashes the native runner the BEAM stays alive (`--no-halt`) with every listener drained,
+# so the container reads "Up" forever and only /health says otherwise (cloudflared 502).
+#
+# Capped on purpose: a restart throws away /tmp uploads, so an uncapped guard turns
+# "upload a bad extension" into a one-minute wiper that eats the upload each time. After CAP
+# restarts in an hour it stops and says so on Telegram instead of looping.
+set -uo pipefail
+
+INSTANCES=${INSTANCES:-exoforge1 exoforge2 exoforge3 exoforge4}
+CAP=${CAP:-3}                                    # restarts per instance per hour
+STATE=${STATE:-$HOME/.local/state/exo-healthguard}
+# Same route as deploy.sh: the containers live on podman's socket behind the docker CLI.
+export DOCKER_HOST="${DOCKER_HOST:-unix:///run/user/$(id -u)/podman/podman.sock}"
+# systemd gives a minimal PATH; hermes lives in ~/.local/bin. Caller PATH is kept first so the
+# self-check below can shadow `docker` (ponytail: no test harness needed).
+export PATH="${PATH:-/usr/local/bin:/usr/bin:/bin}:$HOME/.local/bin"
+
+mkdir -p "$STATE"
+log() { printf '%s %s\n' "$(date -Is)" "$*"; }
+
+# One alert per hour, whatever the instance: a repeated alarm is one people learn to ignore.
+notify() {
+  local f=$STATE/notified
+  if [ -f "$f" ] && [ $(( $(date +%s) - $(stat -c %Y "$f") )) -lt 3600 ]; then
+    log "notify suppressed (last alert < 1 h ago)"
+    return 0
+  fi
+  : >"$f"   # ponytail: mtime is the dedupe clock, no state file to parse
+  printf '%s\n' "$1" | hermes send -t telegram >/dev/null 2>&1 || log "notify failed: $1"
+}
+
+for name in $INSTANCES; do
+  read -r run health <<<"$(docker inspect -f \
+    '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+    "$name" 2>/dev/null)" || continue
+  [ "${run:-}" = running ] || continue        # a stopped container is the restart policy's job
+
+  f=$STATE/$name
+  if [ "${health:-none}" != unhealthy ]; then
+    : >"$f"                                   # green again: forget the streak
+    continue
+  fi
+
+  cut=$(( $(date +%s) - 3600 ))
+  n=$(awk -v c="$cut" '$1 >= c' "$f" 2>/dev/null | wc -l)
+  if [ "$n" -lt "$CAP" ]; then
+    log "restarting $name (restart $((n + 1))/$CAP this hour): healthcheck red"
+    if docker restart "$name" >/dev/null 2>&1; then
+      echo "$(date +%s)" >>"$f"
+    else
+      log "docker restart $name failed"
+      notify "🩺 $name: unhealthy and the restart itself failed — check it by hand"
+    fi
+  else
+    log "$name unhealthy, cap reached ($n/$CAP this hour) — not restarting"
+    notify "🩺 $name unhealthy after $n restarts this hour; not restarting it again.
+Likely a bad extension or a real server fault — check: docker logs --tail 50 $name"
+  fi
+done
+
+exit 0
