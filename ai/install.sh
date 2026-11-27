@@ -63,6 +63,19 @@ step --skip-if 'command -v hc >/dev/null 2>&1' "Install herdr-core (hc)" install
 step --skip-if 'command -v herdr-app >/dev/null 2>&1 || [ -d "$HOME/Applications/Herdr.app" ] || [ -d "${XDG_DATA_HOME:-$HOME/.local/share}/herdr-app" ]' \
   "Install Herdr app (GUI)" install_herdr_app
 
+HERDR_APP_DIR="${HERDR_APP_HOME:-$CONFIG_DIR/herdr-app}"
+step "Create Herdr app config directories" mkdir -p "$HERDR_APP_DIR/themes" "$HERDR_APP_DIR/mods/agent-gate"
+link_file -m "Link Herdr app theme (Gruber Darker)" \
+  "$MODULE_DIR/herdr-app/themes/gruber-darker.json" "$HERDR_APP_DIR/themes/gruber-darker.json"
+step --skip-if 'merge_json --check "$MODULE_DIR/herdr-app/settings.json" "$HERDR_APP_DIR/settings.json"' \
+  "Merge Herdr app settings" \
+  merge_json "$MODULE_DIR/herdr-app/settings.json" "$HERDR_APP_DIR/settings.json"
+step --skip-if 'merge_json --check "$MODULE_DIR/herdr-app/keys.json" "$HERDR_APP_DIR/keys.json"' \
+  "Merge Herdr app keybindings" \
+  merge_json "$MODULE_DIR/herdr-app/keys.json" "$HERDR_APP_DIR/keys.json"
+link_file "$MODULE_DIR/herdr-app/mods/agent-gate/mod.json" "$HERDR_APP_DIR/mods/agent-gate/mod.json"
+link_file "$MODULE_DIR/herdr-app/mods/agent-gate/main.js" "$HERDR_APP_DIR/mods/agent-gate/main.js"
+
 step "Create omp agent directory" mkdir -p "$OMP_HOME/extensions"
 link_file "$MODULE_DIR/omp/config.yml" "$OMP_HOME/config.yml"
 link_file "$MODULE_DIR/mcp.json" "$OMP_HOME/mcp.json"

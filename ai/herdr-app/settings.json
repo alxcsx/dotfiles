@@ -1,0 +1,8 @@
+{
+  "theme": "gruber-darker",
+  "sounds": {
+    "enabled": true
+  },
+  "font_ligatures": false,
+  "telemetry": false
+}

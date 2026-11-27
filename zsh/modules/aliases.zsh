@@ -36,3 +36,12 @@ if [[ "$OSTYPE" == linux* ]]; then
     [[ -t 1 ]] && setterm --blank 1 2>/dev/null
   }
 fi
+
+# herdr
+if (( $+commands[herdr] )); then
+  alias h='herdr'
+  alias hs='herdr status'
+  alias hm='herdr machine'
+  alias hw='herdr worktree'
+  source <(herdr completion zsh)
+fi

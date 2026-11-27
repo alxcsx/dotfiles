@@ -14,7 +14,7 @@ fi
 
 pane_running() {
   if command -v jq >/dev/null 2>&1; then
-    hc ls --json 2>/dev/null | jq -e --arg n "$1" 'any(.[]; .name == $n)' >/dev/null 2>&1
+    hc ls --json 2>/dev/null | jq -e --arg n "$1" 'any(.terminals[]?; .name == $n)' >/dev/null 2>&1
   else
     hc ls --json 2>/dev/null | grep -q "\"name\":\"$1\""
   fi

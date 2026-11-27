@@ -56,7 +56,7 @@ find_terminal() {
   agent=$(herdr_agent "$1")
   if command -v jq >/dev/null 2>&1; then
     hc ls --json 2>/dev/null | jq -r --arg a "$agent" --arg self "${HC_TERMINAL_ID:-}" \
-      '[.[] | select(.agent == $a and .state == "live" and .address != $self) | .address][0] // empty' 2>/dev/null || true
+      '[.terminals[]? | select(.agent == $a and .state == "live" and .address != $self) | .address][0] // empty' 2>/dev/null || true
   else
     hc ls --json 2>/dev/null | tr '{' '\n' |
       grep "\"agent\":\"$agent\"" | grep '"state":"live"' |
@@ -450,6 +450,11 @@ if [ -z "$target" ]; then
   hc run --bg --outlive-parent --name "$target" --cwd "$workdir" env "ASK_PARENT=$HC_TERMINAL_ID" "${clean_env_args[@]}" "${argv[@]}" >/dev/null
   # A send during boot can be dropped.
   hc wait "$target" >/dev/null
+  if command -v herdr-app >/dev/null 2>&1 && herdr-app status >/dev/null 2>&1; then
+    local tid
+    tid=$(hc_get_field "$target" address)
+    [ -n "$tid" ] && herdr-app do terminal.keep --terminal "$tid" --place tab >/dev/null 2>&1 || true
+  fi
 fi
 
 write_pane_context "$target" "$spec_file"

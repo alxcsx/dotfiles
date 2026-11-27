@@ -1,0 +1,5 @@
+{
+  "global": {
+    "ctrl-shift-a": "mod.open:agent-gate"
+  }
+}
