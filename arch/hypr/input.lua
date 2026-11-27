@@ -32,12 +32,12 @@ hl.bind(c.mainMod .. " + P", hl.dsp.window.pseudo())
 -- Cycle xkb layouts (us-intl / pt-abnt2); keep in sync with the bar widget
 hl.bind(c.mainMod .. " + SHIFT + P", hl.dsp.exec_cmd(c.ipc .. "keyboard-layout-cycle"))
 hl.bind(c.mainMod .. " + F", hl.dsp.window.fullscreen())
-hl.bind(c.mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
+hl.bind(c.mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"))
 
 hl.bind(c.mainMod .. " + T"		, hl.dsp.exec_cmd(c.terminal))
 hl.bind(c.mainMod .. " + B"		, hl.dsp.exec_cmd(c.browser))
 hl.bind(c.mainMod .. " + E"		, hl.dsp.exec_cmd(c.fileManager))
-hl.bind(c.mainMod .. "+Space"	, hl.dsp.exec_cmd(c.ipc .. "panel-toggle launcher"))
+hl.bind(c.mainMod .. " + space"	, hl.dsp.exec_cmd(c.ipc .. "panel-toggle launcher"))
 hl.bind(c.mainMod .. " + period", hl.dsp.exec_cmd(c.ipc .. "panel-toggle launcher /emo"))
 hl.bind("ALT + TAB"				 	, hl.dsp.exec_cmd(c.ipc .. "window-switcher"))
 -- Move focus with mainMod + arrow keys
@@ -53,7 +53,7 @@ hl.bind(c.mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 -- Tools
 hl.bind(
     c.mainMod .. " + SHIFT + S",
-    hl.dsp.exec_cmd([[bash -c 'geom=$(slurp -d); [ -n "$geom" ] && grim -g "$geom" - | satty --filename -']])
+    hl.dsp.exec_cmd("$HOME/.config/hypr/screenshot-region.sh")
 )
 
 -- Workspaces

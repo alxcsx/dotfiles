@@ -7,27 +7,27 @@ local monitorWorkspacePrefix = host.monitorWorkspacePrefix or {}
 local workspacePresets = {
     [1] = {
         [1] = {
-            workspace = "name:browsing",
+            default_name = "browsing",
             gaps_in = 8,
             gaps_out = 12,
             persistent = true,
             default = true,
         },
         [2] = {
-            workspace = "name:coding",
+            default_name = "coding",
             gaps_in = 1,
             gaps_out = 1,
             decorate = true,
             persistent = true,
         },
         [3] = {
-            workspace = "name:social",
+            default_name = "social",
             gaps_in = 6,
             gaps_out = 10,
             persistent = true,
         },
         [4] = {
-            workspace = "name:gaming",
+            default_name = "gaming",
             gaps_in = 1,
             gaps_out = 1,
             persistent = true,
@@ -35,16 +35,16 @@ local workspacePresets = {
     },
   [2] = {
     [1] = {
-        workspace = "name:misc",
+        default_name = "misc",
         persistent = true,
         default = true,
     },
     [2] = {
-        workspace = "name:misc II",
+        default_name = "misc II",
         persistent = true,
     },
     [3] = {
-        workspace = "name:misc III",
+        default_name = "misc III",
         persistent = true,
     },
   }
@@ -53,14 +53,13 @@ local workspacePresets = {
 local function workspace_data_for_monitor(monitorName, index)
     -- Unknown monitor (laptop eDP-1, or numeric calls) falls back to preset set 1
     local prefix = monitorWorkspacePrefix[monitorName] or 1
+    local id = tostring((prefix - 1) * 10 + index)
     if workspacePresets[prefix] and workspacePresets[prefix][index] then
-        local preset =  workspacePresets[prefix][index]
-        if not preset.workspace then
-            preset.workspace = string.format("name:%d_%d", prefix, index)
-        end
+        local preset = workspacePresets[prefix][index]
+        preset.workspace = id
         return preset
     else
-        return { workspace = string.format("name:%d_%d", prefix, index)  }
+        return { workspace = id }
     end
 end
 

@@ -11,7 +11,6 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("dbus-update-activation-environment --systemd --all")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'")
-    hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
 
     hl.exec_cmd("noctalia")
@@ -42,6 +41,8 @@ hl.config({
         -- popups, back to the workspace the process was launched from.
         initial_workspace_tracking = 1,
         initial_workspace_token_timeout = 60,
+        mouse_move_enables_dpms = true,
+        key_press_enables_dpms = true,
     },
     xwayland = {
         force_zero_scaling = true,

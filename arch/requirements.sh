@@ -17,6 +17,7 @@ require_pkgs \
   uwsm \
   hyprpolkitagent \
   xdg-desktop-portal-hyprland \
+  xdg-desktop-portal-gtk \
   grim \
   slurp \
   wl-clipboard \
