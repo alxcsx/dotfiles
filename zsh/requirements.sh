@@ -17,4 +17,6 @@ require_pkgs \
   fd \
   zoxide
 
-require_custom -c "starship" -- run_remote_script https://starship.rs/install.sh
+if ! (command -v pacman >/dev/null 2>&1 && pacman -Qq starship >/dev/null 2>&1); then
+  step "Install or update starship" run_remote_script https://starship.rs/install.sh -y
+fi

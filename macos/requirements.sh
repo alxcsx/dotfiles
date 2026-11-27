@@ -33,4 +33,4 @@ require_pkgs \
   cask:font-roboto-mono-nerd-font
 
 
-require_custom -c "aerospace-swipe" -- run_remote_script https://raw.githubusercontent.com/acsandmann/aerospace-swipe/main/install.sh
+step "Install or update aerospace-swipe" run_remote_script https://raw.githubusercontent.com/acsandmann/aerospace-swipe/main/install.sh

@@ -41,27 +41,38 @@ JS
 }
 
 ## - omp + Herdr cross-agent orchestration (omp, agy, claude, copilot over hc) --
-install_omp() {
-  PI_INSTALL_DIR="$OMP_BIN_DIR" run_remote_script "https://omp.sh/install"
+install_or_update_omp() {
+  if [ -x "$OMP_BIN_DIR/omp" ]; then
+    PATH="$OMP_BIN_DIR:$PATH" "$OMP_BIN_DIR/omp" update
+  else
+    PI_INSTALL_DIR="$OMP_BIN_DIR" run_remote_script "https://omp.sh/install"
+  fi
 }
 
-install_herdr() {
-  HERDR_INSTALL_DIR="$BIN_DIR" run_remote_script "https://herdr.dev/install.sh"
+install_or_update_herdr() {
+  if command -v herdr >/dev/null 2>&1; then
+    herdr update
+  else
+    HERDR_INSTALL_DIR="$BIN_DIR" run_remote_script "https://herdr.dev/install.sh"
+  fi
 }
 
-install_hc() {
-  HC_INSTALL_DIR="$BIN_DIR" run_remote_script "https://releases.herdr.dev/core/install.sh"
+install_or_update_hc() {
+  if command -v hc >/dev/null 2>&1; then
+    hc update
+  else
+    HC_INSTALL_DIR="$BIN_DIR" run_remote_script "https://releases.herdr.dev/core/install.sh"
+  fi
 }
 
 install_herdr_app() {
   run_remote_script "https://releases.herdr.dev/app/install.sh"
 }
 
-step --skip-if '[ -x "$OMP_BIN_DIR/omp" ]' "Install omp" install_omp
-step --skip-if 'command -v herdr >/dev/null 2>&1' "Install herdr TUI" install_herdr
-step --skip-if 'command -v hc >/dev/null 2>&1' "Install herdr-core (hc)" install_hc
-step --skip-if 'command -v herdr-app >/dev/null 2>&1 || [ -d "$HOME/Applications/Herdr.app" ] || [ -d "${XDG_DATA_HOME:-$HOME/.local/share}/herdr-app" ]' \
-  "Install Herdr app (GUI)" install_herdr_app
+step "Install or update omp" install_or_update_omp
+step "Install or update herdr TUI" install_or_update_herdr
+step "Install or update herdr-core (hc)" install_or_update_hc
+step "Install or update Herdr app (GUI)" install_herdr_app
 
 HERDR_APP_DIR="${HERDR_APP_HOME:-$CONFIG_DIR/herdr-app}"
 step "Create Herdr app config directories" mkdir -p "$HERDR_APP_DIR/themes" "$HERDR_APP_DIR/mods/agent-gate"
@@ -103,7 +114,11 @@ install_claude_plugins() {
   installed=$(claude plugin list 2>/dev/null || true)
   for p in $(node -e 'console.log(Object.keys(require(process.argv[1]).enabledPlugins).join(" "))' \
     "$MODULE_DIR/claude/settings.json"); do
-    grep -qF "$p" <<<"$installed" || claude plugin install "$p" || return 1
+    if grep -qF "$p" <<<"$installed"; then
+      claude plugin update "$p" >/dev/null 2>&1 || true
+    else
+      claude plugin install "$p" || return 1
+    fi
   done
 }
 step "Install Claude Code plugins" install_claude_plugins

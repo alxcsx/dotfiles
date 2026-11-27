@@ -22,9 +22,13 @@ dotnet_tool_step() {
 	local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 	local tools_dir="${DOTNET_CLI_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/dotnet}/.dotnet/tools"
 
-	step --skip-if "command -v $tool >/dev/null 2>&1" \
-		"Install $tool via dotnet tool" \
-		dotnet tool install -g "$tool" || return 1
+	if command -v "$tool" >/dev/null 2>&1; then
+		step "Update $tool via dotnet tool" \
+			bash -c 'dotnet tool update -g "$1" || echo "Warning: $1 update failed; keeping installed version" >&2' _ "$tool"
+	else
+		step "Install $tool via dotnet tool" \
+			dotnet tool install -g "$tool" || return 1
+	fi
 
 	if [ -x "$tools_dir/$tool" ]; then
 		mkdir -p "$bin_dir"
@@ -36,34 +40,31 @@ install_omnisharp() {
 	local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 	local dest_dir="${XDG_DATA_HOME:-$HOME/.local/share}/omnisharp"
 
-	if ! command -v omnisharp >/dev/null 2>&1 && ! command -v OmniSharp >/dev/null 2>&1; then
-		local os_target arch_target
-		case "${OS:-$(uname -s | tr '[:upper:]' '[:lower:]')}" in
-		linux) os_target="linux" ;;
-		darwin) os_target="osx" ;;
-		*)
-			printfln "${RED}[!]${NC} Unsupported OS for OmniSharp"
-			return 1
-			;;
-		esac
+	local os_target arch_target
+	case "${OS:-$(uname -s | tr '[:upper:]' '[:lower:]')}" in
+	linux) os_target="linux" ;;
+	darwin) os_target="osx" ;;
+	*)
+		printfln "${RED}[!]${NC} Unsupported OS for OmniSharp"
+		return 1
+		;;
+	esac
 
-		case "$(uname -m)" in
-		x86_64 | amd64) arch_target="x64" ;;
-		aarch64 | arm64) arch_target="arm64" ;;
-		*)
-			printfln "${RED}[!]${NC} Unsupported architecture for OmniSharp"
-			return 1
-			;;
-		esac
+	case "$(uname -m)" in
+	x86_64 | amd64) arch_target="x64" ;;
+	aarch64 | arm64) arch_target="arm64" ;;
+	*)
+		printfln "${RED}[!]${NC} Unsupported architecture for OmniSharp"
+		return 1
+		;;
+	esac
 
-		local url="https://github.com/OmniSharp/omnisharp-roslyn/releases/latest/download/omnisharp-${os_target}-${arch_target}.tar.gz"
-		mkdir -p "$dest_dir" "$bin_dir" || return 1
-		curl -sSL "$url" | tar -xz -C "$dest_dir" || return 1
-		chmod +x "$dest_dir/OmniSharp" || return 1
-	fi
+	local url="https://github.com/OmniSharp/omnisharp-roslyn/releases/latest/download/omnisharp-${os_target}-${arch_target}.tar.gz"
+	mkdir -p "$dest_dir" "$bin_dir" || return 1
+	curl -sSL "$url" | tar -xz -C "$dest_dir" || return 1
+	chmod +x "$dest_dir/OmniSharp" || return 1
 
-	local omnisharp_bin
-	omnisharp_bin="$(command -v OmniSharp 2>/dev/null || command -v omnisharp 2>/dev/null || echo "$dest_dir/OmniSharp")"
+	local omnisharp_bin="$dest_dir/OmniSharp"
 	if [ -x "$omnisharp_bin" ]; then
 		mkdir -p "$bin_dir"
 		ln -sf "$omnisharp_bin" "$bin_dir/omnisharp"
@@ -90,9 +91,7 @@ mise_install_step ruff latest
 # DOTNET
 mise_install_step dotnet 10
 dotnet_tool_step csharp-ls
-step --skip-if 'command -v omnisharp >/dev/null 2>&1 && command -v OmniSharp >/dev/null 2>&1' \
-	"Install OmniSharp language server" \
-	install_omnisharp
+step "Install or update OmniSharp language server" install_omnisharp
 dotnet_tool_step fsautocomplete
 # JVM
 mise_install_step java lts
@@ -142,9 +141,6 @@ if [[ "$DISTRO" == "macos" ]]; then
 else
 	step "Enable Podman Socket" systemctl --user enable --now podman.socket
 fi
-
-# Configure Node
-step "Enable CorePack for node" mise exec node -- corepack enable
 
 # Inject Mise and direnv into Shell:
 append_rc_step "dev" "$(

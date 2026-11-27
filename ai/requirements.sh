@@ -27,7 +27,7 @@ require_pkgs \
 # older macOS and would compile rust + llvm from source.
 # difftastic and duckdb come straight from GitHub releases: mise's default
 # (aqua) entries don't match their current macOS arm64 asset names.
-mise_tool() { require_custom -c "$1" -m "$2 (mise)" -- mise use --global "$2@latest"; }
+mise_tool() { step "Install or update $2 (mise)" mise use --global "$2@latest"; }
 mise_tool ast-grep ast-grep
 mise_tool hyperfine hyperfine
 mise_tool yq yq
@@ -37,15 +37,15 @@ mise_tool duckdb github:duckdb/duckdb
 mise_tool scc github:boyter/scc
 
 for tool in pgcli sqlfluff check-jsonschema; do
-  require_custom -c "$tool" -m "$tool (uv)" -- uv tool install "$tool"
+  step "Install or update $tool (uv)" uv tool install --upgrade "$tool"
 done
 
 require_pkgs jq arch:bubblewrap
 
 # GDScript formatter/linter (gdformat, gdlint) for Godot 4 projects.
-require_custom -c "gdformat" -- \
-  uv tool install "gdtoolkit==4.*"
+step "Install or update gdformat (uv)" \
+  uv tool install --upgrade "gdtoolkit==4.*"
 
 # Claude Code usage per 5-hour window.
-require_custom -c "ccusage" -- \
-  npm install -g ccusage
+step "Install or update ccusage (npm)" \
+  npm install -g ccusage@latest

@@ -9,4 +9,7 @@ export PI_CODING_AGENT_DIR="${OMP_AGENT_DIR:-$HOME/.omp/agent}"
 # authenticate another provider.
 unset OPENAI_API_KEY GEMINI_API_KEY
 
-exec "${XDG_DATA_HOME:-$HOME/.local/share}/omp/bin/omp" "$@"
+OMP_BIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omp/bin"
+export PATH="$OMP_BIN_DIR:$PATH"
+
+exec "$OMP_BIN_DIR/omp" "$@"
