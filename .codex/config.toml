@@ -1,0 +1,3 @@
+# Project-scoped Codex baseline: edit this repo, ask before anything broader.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"

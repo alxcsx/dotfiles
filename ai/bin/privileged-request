@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Request one reviewed privileged script. Agents never receive reusable sudo.
+#   privileged-request check
+#   privileged-request run "why this needs root" < script.sh
+set -euo pipefail
+
+source=$0
+while [ -L "$source" ]; do
+  source_dir=$(cd -P "$(dirname "$source")" && pwd)
+  source=$(readlink "$source")
+  [[ "$source" = /* ]] || source="$source_dir/$source"
+done
+SCRIPT_DIR=$(cd -P "$(dirname "$source")" && pwd)
+REPO_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
+
+usage() {
+  sed -n '2,4s/^# \{0,1\}//p' "$0" >&2
+  exit 2
+}
+
+platform=${OSTYPE:-}
+case "${1:-}" in
+check)
+  case "$platform" in
+  darwin*) command -v osascript >/dev/null && echo 'macOS: native administrator dialog available' ;;
+  linux*)
+    if command -v pkexec >/dev/null; then
+      echo 'Linux: Polkit dialog available'
+    elif [ -x "$REPO_DIR/arch_server/sudo-queue/sudo-queue" ]; then
+      echo 'Linux: headless Telegram approval queue available'
+    else
+      echo 'Linux: no Polkit dialog or approval queue available'; exit 1
+    fi
+    ;;
+  *) echo "unsupported platform: $platform"; exit 1 ;;
+  esac
+  exit 0
+  ;;
+run)
+  [ $# -eq 2 ] || usage
+  reason="$2"
+  ;;
+*) usage ;;
+esac
+
+body=$(cat)
+[ -n "${body//[[:space:]]/}" ] || { echo 'privileged-request: empty script' >&2; exit 2; }
+tmp=$(mktemp "${TMPDIR:-/tmp}/privileged-request.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+umask 077
+printf '%s\n' "$body" >"$tmp"
+chmod 700 "$tmp"
+
+printf 'Privileged request: %s\n--- script ---\n%s\n--- end script ---\n' "$reason" "$body" >&2
+case "$platform" in
+darwin*)
+  osascript -e 'on run argv' \
+    -e 'do shell script "/bin/bash " & quoted form of item 1 of argv with administrator privileges' \
+    -e 'end run' "$tmp"
+  ;;
+linux*)
+  if command -v pkexec >/dev/null; then
+    pkexec /bin/bash "$tmp"
+  else
+    queue="$REPO_DIR/arch_server/sudo-queue/sudo-queue"
+    [ -x "$queue" ] || { echo 'privileged-request: Polkit and sudo-queue are unavailable' >&2; exit 1; }
+    "$queue" add "$reason" <"$tmp"
+  fi
+  ;;
+*) echo "privileged-request: unsupported platform '$platform'" >&2; exit 1 ;;
+esac

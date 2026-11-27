@@ -18,6 +18,7 @@
 set -uo pipefail
 D=${SUDO_QUEUE_DIR:-$HOME/.local/state/sudo-queue}
 mkdir -p "$D/done" 2>/dev/null
+now() { date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z'; }
 
 case ${1:-} in
 add)
@@ -27,7 +28,7 @@ add)
   id=$(date +%H%M%S)
   n=0; while [ -e "$D/$id.sh" ]; do n=$((n + 1)); id=$(date +%H%M%S)-$n; done
   printf '%s\n' "$body" >"$D/$id.sh"
-  printf 'why: %s\nby: %s\nat: %s\n' "$why" "${HERMES_PROFILE:-alex}" "$(date -Is)" >"$D/$id.meta"
+  printf 'why: %s\nby: %s\nat: %s\n' "$why" "${HERMES_PROFILE:-alex}" "$(now)" >"$D/$id.meta"
   chmod 600 "$D/$id.sh" "$D/$id.meta"
   echo "queued $id — approve on Telegram with: /run $id"
   ;;

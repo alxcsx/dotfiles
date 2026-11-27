@@ -33,6 +33,9 @@ tests and troubleshoots; do not spend credits on it.
   `omp`.
 - Keep context small: one task per session (`/clear` between tasks), and do not
   paste logs or file dumps into a session; send a path.
+- Never run `sudo` directly. Submit one reviewed, idempotent script with
+  `privileged-request run "reason and rollback"`; macOS and desktop Linux require
+  an OS authentication dialog, while headless Linux queues it for the operator.
 - Start from `.agents/INDEX.md` (run `agents-index` to refresh it) and open
   only the handoff or task you need; do not read `.agents/` wholesale.
 - Reports: at most 10 lines, `file:line` refs, what changed, what to test.
