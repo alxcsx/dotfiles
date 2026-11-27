@@ -1,23 +1,52 @@
 #!/usr/bin/env bash
 # Shared quota board so the orchestrator knows who is available.
-#   agent-quota                          show every agent
-#   agent-quota set <agent> ok|low|out [until]   record a status (until is free text)
+#   agent-quota                          show every agent and its routing state
+#   agent-quota set <agent> ok|low|out [reset-at]  record a provider reset time
 # omp is read live from `omp usage --json` (OpenCode Go 5h/weekly/monthly
-# windows). claude is estimated from its transcripts (output tokens in the last
-# 5h). agy and copilot expose no API, so their status is set by hand or by
-# whoever hits a limit.
+# windows). Claude Code, agy, copilot, and codex currently have no supported
+# CLI endpoint for subscription reset times; record the time their provider
+# shows rather than inferring it from local transcripts.
 set -euo pipefail
 
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/agents/quota"
+AGENTS="agy claude copilot codex"
+USE_BEFORE_RESET_SECONDS=$((12 * 60 * 60))
 mkdir -p "$(dirname "$STATE")"
 touch "$STATE"
 
+reset_epoch() {
+  local reset_at="${1:-}" value
+  [ -n "$reset_at" ] || return 1
+  [[ "$reset_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$ ]] || return 1
+  value="${reset_at/Z/+00:00}"
+  value="${value%:*}${value: -2}"
+  date -j -f '%Y-%m-%dT%H:%M:%S%z' "$value" +%s 2>/dev/null ||
+    date -d "$reset_at" +%s 2>/dev/null
+}
+
+duration() {
+  local seconds="$1" hours minutes
+  [ "$seconds" -gt 0 ] || { printf 'now'; return; }
+  hours=$((seconds / 3600))
+  minutes=$(((seconds % 3600) / 60))
+  if [ "$hours" -gt 0 ]; then
+    printf '%dh%02dm' "$hours" "$minutes"
+  else
+    printf '%dm' "$minutes"
+  fi
+}
+
 if [ "${1:-}" = set ]; then
-  [ $# -ge 3 ] || { sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
-  agent="$2" status="$3" when="${4:--}"; when="${when// /_}"
+  [ $# -eq 4 ] || { sed -n '2,3p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+  agent="$2" status="$3" reset_at="$4"
+  case " $AGENTS " in *" $agent "*) ;; *) echo "agent-quota: unknown agent '$agent'" >&2; exit 2 ;; esac
   case "$status" in ok | low | out) ;; *) echo "agent-quota: status must be ok, low or out" >&2; exit 2 ;; esac
+  reset_epoch "$reset_at" >/dev/null || {
+    echo "agent-quota: reset-at must be ISO 8601, e.g. 2026-11-28T02:00:00-03:00" >&2
+    exit 2
+  }
   grep -v "^$agent " "$STATE" >"$STATE.tmp" || true
-  echo "$agent $status $when $(date +%s)" >>"$STATE.tmp"
+  echo "$agent $status $reset_at $(date +%s)" >>"$STATE.tmp"
   mv "$STATE.tmp" "$STATE"
   exit 0
 fi
@@ -43,18 +72,32 @@ omp_usage() {
       end' || echo "unknown omp usage failed"
 }
 
-printf '%-8s %-5s %s\n' agent state note
+printf '%-8s %-5s %-12s %s\n' agent state route note
 read -r status note <<<"$(omp_usage)"
 [ "$status" = out ] && note="$note; free models only"
-printf '%-8s %-5s %s\n' omp "$status" "$note"
-for agent in agy claude copilot codex; do
+printf '%-8s %-5s %-12s %s\n' omp "$status" live "$note"
+for agent in $AGENTS; do
   line=$(grep "^$agent " "$STATE" || true)
   if [ -n "$line" ]; then
-    read -r _ status when ts <<<"$line"
-    note="set $(( ($(date +%s) - ts) / 60 ))m ago, until $when"
+    read -r _ status reset_at ts <<<"$line"
+    reset=$(reset_epoch "$reset_at" || true)
+    remaining=$((reset - $(date +%s)))
+    if [ "$remaining" -le 0 ]; then
+      route="refresh"
+      note="reset passed; refresh from provider"
+    elif [ "$status" = out ]; then
+      route="wait"
+      note="resets in $(duration "$remaining")"
+    elif [ "$remaining" -le "$USE_BEFORE_RESET_SECONDS" ]; then
+      route="prefer-now"
+      note="use before reset in $(duration "$remaining")"
+    else
+      route="normal"
+      note="resets in $(duration "$remaining")"
+    fi
   else
-    status=ok note="not set"
+    status=ok route=normal note="reset unknown"
   fi
   [ "$agent" = claude ] && note="$note; $(claude_5h)"
-  printf '%-8s %-5s %s\n' "$agent" "$status" "$note"
+  printf '%-8s %-5s %-12s %s\n' "$agent" "$status" "$route" "$note"
 done

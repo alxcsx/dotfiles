@@ -8,7 +8,7 @@ Shared by every agent (omp, claude, agy, copilot, codex, feynman). Find yourself
 | `agy` | weekly quota | architecture, second opinions, reviews |
 | `claude` | 5h windows, very tight | last resort: planning, hard debugging, reviewing diffs |
 | `copilot` | 200 credits/month | last resort: small cross-checks |
-| `codex` | budget TBD | final diff review (OpenAI family, independent of DeepSeek/Gemini/Claude); high-risk reviews only |
+| `codex` | expanded quota | preferred: complex implementation, debugging, repo-wide refactors, and final diff review |
 | `feynman` | shares `omp` (`opencode-go`) quota | literature search, paper audits, research synthesis (no `:model` or `--effort` CLI flag) |
 
 ## Rules
@@ -16,8 +16,10 @@ Shared by every agent (omp, claude, agy, copilot, codex, feynman). Find yourself
 Small quotas everywhere: get the work done with the fewest tokens. The user
 tests and troubleshoots; do not spend credits on it.
 
-- Cheapest first: `omp`, then `agy`, then `claude`/`copilot`. Check `agent-quota`
-  before delegating; skip agents marked low or out.
+- Use `omp` for small, well-scoped work. Prefer `codex` for complex implementation,
+  debugging, or refactors; use `agy` for architecture and independent review. Check
+  `agent-quota` before delegating: prioritize `prefer-now`, avoid `wait`, and refresh
+  provider status for `refresh` before assigning work.
 - Plan first for non-trivial work: a short plan (a few lines) with what to
   build and how it will be checked; do not iterate on it or get it reviewed.
   Small or clear tasks need no plan.
@@ -47,7 +49,7 @@ tests and troubleshoots; do not spend credits on it.
 | `omp:longcat-2.5` | search/triage only; avoid prose generation (reports of loops and Chinese output). For long text use `deepseek-v4.1-flash`/`v4-pro` + human review |
 | `agy:neon`, `agy:hydrogen`, `agy:argon` | architecture, second opinions, reviews (`hydrogen` for technical/statistical/final diff review; `neon` for prose) |
 | `claude` / `copilot` | last resort: single pre-push diff review; `copilot` also for small cross-checks (e.g., verifying URLs/references) |
-| `codex` (`codex exec`) | final diff review when an independent OpenAI-family perspective is needed; high-risk reviews only |
+| `codex` (`codex exec`) | preferred for complex implementation, hard debugging, and repo-wide refactors; also use for final review when an independent OpenAI-family perspective is useful |
 
 Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and `omp:glm-5.3-flash` (poor tool calling). Weak/free models never make design decisions or write conclusions; they only execute well-scoped tasks.
 
@@ -62,7 +64,10 @@ Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and 
 - `ask <agent> --spec <file.json>` is optional, for tasks that need exact
   acceptance commands (`agents/task.schema.json`).
 - `ask --headless <agent> "<task>"` is a one-shot run (`omp`, `claude`, `copilot`).
-- `agent-quota` shows each agent's status (omp live from `omp usage`); `agent-quota set <agent> ok|low|out [until]`.
+- `agent-quota` shows status, a routing recommendation, and known reset countdowns.
+  OMP is live from `omp usage`. For other subscription agents, copy the reset timestamp
+  shown by the provider: `agent-quota set claude low 2026-11-28T02:00:00-03:00`.
+  Do not infer a weekly reset from transcript token counts.
 - One helper at a time; helpers never start more agents. Read-only unless the
   task asks for edits.
 
