@@ -19,7 +19,7 @@ link_dir_content "$MODULE_DIR/satty" "$CONFIG_DIR/satty"
 
 # Machine-specific overrides (monitors, workspaces) — hosts/<hostname>/hypr/
 HOST_DIR="$MODULE_DIR/hosts/$(uname -n)"
-if [[ -d "$HOST_DIR" ]]; then
+if [[ -d "$HOST_DIR/hypr" ]]; then
 	link_dir_content "$HOST_DIR/hypr" "$CONFIG_DIR/hypr"
 else
 	printfln "${YELLOW}[!]${NC} No host overrides for '$(uname -n)'; using generic defaults."

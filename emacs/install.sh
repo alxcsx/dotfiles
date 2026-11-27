@@ -4,6 +4,8 @@ if false; then
   source "../dot.sh"
 fi
 
+command -v mise >/dev/null 2>&1 && eval "$(mise activate bash)"
+
 EMACS_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/emacs"
 
 # Cargo is provided by mise in your dev module

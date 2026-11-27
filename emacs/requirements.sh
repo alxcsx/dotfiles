@@ -14,7 +14,9 @@ if [[ "$DISTRO" == "macos" ]]; then
 fi
 
 require_pkgs \
-  "linux:emacs" \
+  "arch:emacs-wayland" \
+  "ubuntu:emacs" \
+  "debian:emacs" \
   "pinentry" \
   "jetbrains-mono" \
   "victor-mono" \

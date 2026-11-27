@@ -80,6 +80,7 @@ hl.bind("XF86AudioLowerVolume" , hl.dsp.exec_cmd(c.ipc .. "volume-down"), { lock
 hl.bind("XF86AudioMute"        , hl.dsp.exec_cmd(c.ipc .. "volume-mute"), { locked = true })
 hl.bind("XF86MonBrightnessUp"  , hl.dsp.exec_cmd(c.ipc .. "brightness-up"),   { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(c.ipc .. "brightness-down"), { locked = true, repeating = true })
+hl.bind("switch:on:Lid Switch" , hl.dsp.exec_cmd("systemctl suspend"),    { locked = true })
 
 -- Requires playerctl
 hl.bind("XF86AudioNext"	, hl.dsp.exec_cmd("playerctl next"),       { locked = true })

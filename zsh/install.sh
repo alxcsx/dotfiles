@@ -42,6 +42,9 @@ done
 link_file -m "Symlink Custom Modules Dir" "$ZSH_SRC/modules" "$MODULES_LINK"
 
 step -b \
-   --skip-if '[ "$SHELL" == "$ZSH_PATH" ]' \
+  --skip-if '[[ "$SHELL" == *"/zsh" ]]' \
   "Set ZSH as default shell" \
-  sudo chsh -s "$ZSH_PATH"
+  sudo chsh -s "$ZSH_PATH" "${SUDO_USER:-$USER}"
+
+export SHELL="$ZSH_PATH"
+

@@ -1,0 +1,18 @@
+[Unit]
+Description=Static site hosting
+After=network-online.target
+
+[Container]
+Image=docker.io/library/caddy:2-alpine
+ContainerName=static-sites
+PublishPort=127.0.0.1:58110:8080
+Volume=%h/services/static-sites/sites:/srv:ro
+Volume=%h/dotfiles/ai/static-sites/Caddyfile:/etc/caddy/Caddyfile:ro
+Volume=%h/services/static-sites/caddy-data:/data
+Volume=%h/services/static-sites/caddy-config:/config
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

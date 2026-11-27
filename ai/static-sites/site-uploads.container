@@ -1,0 +1,19 @@
+[Unit]
+Description=Private static site uploads
+After=network-online.target
+
+[Container]
+Image=ghcr.io/filebrowsernext/filebrowsernext:latest
+ContainerName=site-uploads
+UserNS=keep-id
+PublishPort=127.0.0.1:58111:8080
+Environment=FB_PORT=8080
+Volume=%h/services/static-sites/sites:/srv
+Volume=%h/services/static-sites/filebrowser/database-next:/database
+Volume=%h/services/static-sites/filebrowser/config-next:/config
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

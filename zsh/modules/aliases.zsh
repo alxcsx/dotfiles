@@ -21,3 +21,18 @@ alias -- -='cd -'
 
 
 alias vim='nvim'
+
+if [[ "$OSTYPE" == linux* ]]; then
+  caffeinate() {
+    local args=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -[dDiImsu]*) shift ;;
+        *) args+=("$1"); shift ;;
+      esac
+    done
+    [[ -t 1 ]] && setterm --blank 0 2>/dev/null
+    systemd-inhibit --what="idle:sleep:handle-lid-switch" --why="caffeinate" "${args[@]:-sleep infinity}"
+    [[ -t 1 ]] && setterm --blank 1 2>/dev/null
+  }
+fi

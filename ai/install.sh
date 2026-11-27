@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # name:		ai.install.sh
-# desc:		Configure AI agents (omp, Claude Code, Copilot, agy) and their orchestration.
+# desc:		Configure AI agents (omp, Claude Code, Codex, Copilot, agy) and their orchestration.
 # author:	Alex Candido <github:alxcsx>
 
 if false; then
@@ -86,6 +86,7 @@ link_file "$MODULE_DIR/claude/agents/reviewer.md" "$CLAUDE_HOME/agents/reviewer.
 install_claude_plugins() {
   command -v claude >/dev/null 2>&1 || return 0
   local p installed
+  claude plugin marketplace update >/dev/null 2>&1 || true # stale copy => "not found in marketplace"
   installed=$(claude plugin list 2>/dev/null || true)
   for p in $(node -e 'console.log(Object.keys(require(process.argv[1]).enabledPlugins).join(" "))' \
     "$MODULE_DIR/claude/settings.json"); do

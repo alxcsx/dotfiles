@@ -7,6 +7,8 @@ if false; then
 	source "../dot.sh"
 fi
 
+command -v mise >/dev/null 2>&1 && eval "$(mise activate bash)"
+
 # Helpers:
 mise_install_step() {
 	step "install $1@$2 through mise" mise use --global "$1@$2" || {

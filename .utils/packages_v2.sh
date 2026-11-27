@@ -33,7 +33,7 @@ _check_macos() {
 }
 
 _check_arch() {
-  pacman -Qq "$1" &>/dev/null
+  pacman -Qq "${1#aur:}" &>/dev/null
 }
 
 _check_ubuntu() {
@@ -50,8 +50,12 @@ _install_macos() {
     fi
   done
 
-  [[ ${#formulas[@]} -gt 0 ]] && brew install "${formulas[@]}"
-  [[ ${#casks[@]} -gt 0 ]] && brew install --cask "${casks[@]}"
+  if [[ ${#formulas[@]} -gt 0 ]]; then
+    brew install "${formulas[@]}" || return 1
+  fi
+  if [[ ${#casks[@]} -gt 0 ]]; then
+    brew install --cask "${casks[@]}" || return 1
+  fi
 }
 
 _install_arch() {
@@ -64,8 +68,12 @@ _install_arch() {
     fi
   done
 
-  [[ ${#native[@]} -gt 0 ]] && sudo pacman -S --needed --noconfirm "${native[@]}"
-  [[ ${#aur[@]} -gt 0 ]] && yay -S --needed --noconfirm "${aur[@]}"
+  if [[ ${#native[@]} -gt 0 ]]; then
+    sudo pacman -S --needed --noconfirm "${native[@]}" || return 1
+  fi
+  if [[ ${#aur[@]} -gt 0 ]]; then
+    yay -S --needed --noconfirm "${aur[@]}" || return 1
+  fi
 }
 
 _install_ubuntu() {
@@ -78,7 +86,7 @@ _is_pkg_installed() {
   local check_func="_check_${DISTRO}"
 
   if type "$check_func" &>/dev/null; then
-    "$check_func" "$clean_pkg"
+    "$check_func" "$pkg"
   else
     command -v "$clean_pkg" &>/dev/null
   fi

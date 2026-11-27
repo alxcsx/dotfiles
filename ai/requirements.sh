@@ -14,9 +14,12 @@ assert [ -n "$(command -v npm)" ] -- \
   "npm not found" \
   "Install the dev module first (it provides mise + node + npm env)"
 
-# --- Claude Code + Copilot CLI ---
+# --- Claude Code, Codex + Copilot CLI ---
 require_pkgs \
+  arch:aur:claude-code \
+  arch:openai-codex \
   macos:cask:claude-code \
+  macos:cask:codex \
   macos:cask:copilot-cli
 
 # --- Tools agents lean on: structural search, data/SQL, diffs, benchmarks ---
