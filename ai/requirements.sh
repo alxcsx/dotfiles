@@ -28,14 +28,16 @@ mise_tool() { require_custom -c "$1" -m "$2 (mise)" -- mise use --global "$2@lat
 mise_tool ast-grep ast-grep
 mise_tool hyperfine hyperfine
 mise_tool yq yq
+mise_tool shfmt shfmt
 mise_tool difft github:Wilfred/difftastic
 mise_tool duckdb github:duckdb/duckdb
+mise_tool scc github:boyter/scc
 
-for tool in pgcli sqlfluff; do
+for tool in pgcli sqlfluff check-jsonschema; do
   require_custom -c "$tool" -m "$tool (uv)" -- uv tool install "$tool"
 done
 
-require_pkgs jq macos:scc
+require_pkgs jq arch:bubblewrap
 
 # GDScript formatter/linter (gdformat, gdlint) for Godot 4 projects.
 require_custom -c "gdformat" -- \

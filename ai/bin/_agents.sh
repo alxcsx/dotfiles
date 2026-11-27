@@ -103,3 +103,69 @@ append_permission_args() {
     ;;
   esac
 }
+
+# Build a clean environment array (`clean_env_args`) for `hc run env ...`,
+# forwarding user/XDG/toolchain vars while stripping terminal/session identity
+# and stray metered API keys.
+build_clean_env() {
+  local var
+  clean_env_args=()
+  while IFS= read -r var; do
+    case "$var" in
+    HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | \
+      ITERM_* | KITTY_* | WEZTERM_* | ALACRITTY_* | TMUX* | ZELLIJ* | \
+      ANTIGRAVITY_* | __CF* | __MISE_ORIG_PATH | Apple_PubSub_* | \
+      LaunchInstanceID | SECURITYSESSIONID | COMMAND_MODE | \
+      ASK_PARENT | ASK_READONLY | ASK_SPEC_FILES | \
+      OPENAI_API_KEY | GEMINI_API_KEY)
+      continue
+      ;;
+    esac
+    clean_env_args+=("$var=${!var}")
+  done < <(compgen -e)
+}
+
+# Query a single field from `hc get <target> --json` using jq.
+hc_get_field() {
+  local target="$1" field="$2"
+  if command -v jq >/dev/null 2>&1; then
+    hc get "$target" --json 2>/dev/null | jq -r --arg f "$field" '.[$f] // empty' 2>/dev/null || true
+  else
+    hc get "$target" --json 2>/dev/null | sed -n "s/.*\"$field\":\"\\([^\"]*\\)\".*/\\1/p" | head -n1 || true
+  fi
+}
+
+# Run a command with kernel-level PR_SET_NO_NEW_PRIVS on Linux when the task
+# does not declare sudo needs (or when sudo-queue handles root requests).
+exec_with_no_new_privs() {
+  local allow_setuid="${1:-0}"
+  shift
+  if [ "$allow_setuid" = 0 ] && [ "$(uname -s)" = Linux ] && command -v python3 >/dev/null 2>&1; then
+    exec python3 -c '
+import ctypes, os, sys
+try:
+    ctypes.CDLL("libc.so.6").prctl(38, 1, 0, 0, 0)
+except Exception:
+    pass
+os.execvp(sys.argv[1], sys.argv[1:])
+' "$@"
+  fi
+  exec "$@"
+}
+
+# Programmatic quota routing: if omp is exhausted and no model was pinned,
+# fall back to hy4-flash-free; if another agent is marked `wait`, warn on stderr.
+apply_quota_routing() {
+  local quota_bin="$1" agent="$2"
+  [ -x "$quota_bin" ] || return 0
+  local line state route
+  line=$("$quota_bin" 2>/dev/null | awk -v a="$agent" '$1 == a { print $2, $3; exit }' || true)
+  [ -n "$line" ] || return 0
+  read -r state route <<<"$line"
+  if [ "$agent" = omp ] && [ "$state" = out ] && [ -z "${model:-}" ]; then
+    model="hy4-flash-free"
+    echo "ask: omp quota exhausted; routing to free model '$model'" >&2
+  elif [ "$route" = wait ]; then
+    echo "ask: warning — '$agent' quota is marked out/wait ($("$quota_bin" 2>/dev/null | awk -v a="$agent" '$1==a{print substr($0, index($0,$4))}'))" >&2
+  fi
+}

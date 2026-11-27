@@ -4,10 +4,11 @@
 # sensitive actions (e.g. git push, out-of-scope writes) to the orchestrator
 # terminal via Herdr (`hc send`) + file-based decision handoff.
 #
-# Usage: agent-gate [--client copilot|codex|auto]
+# Usage: agent-gate [--client copilot|codex|claude|auto] [--event pre|stop|auto]
 set -euo pipefail
 
 client="auto"
+event="auto"
 while [ $# -gt 0 ]; do
   case "$1" in
   --client)
@@ -17,6 +18,15 @@ while [ $# -gt 0 ]; do
     ;;
   --client=*)
     client="${1#*=}"
+    shift
+    ;;
+  --event)
+    [ $# -ge 2 ] || { echo "agent-gate: --event requires a value" >&2; exit 2; }
+    event="$2"
+    shift 2
+    ;;
+  --event=*)
+    event="${1#*=}"
     shift
     ;;
   *)
@@ -40,6 +50,30 @@ if [ "$client" = auto ]; then
   else
     client="codex"
   fi
+fi
+
+if [ "$event" = auto ]; then
+  hook_evt=$(jq -r '.hook_event_name // .hookEventName // ""' <<<"$input")
+  case "$hook_evt" in
+  Stop | SubagentStop) event="stop" ;;
+  *) event="pre" ;;
+  esac
+fi
+
+if [ "$event" = stop ]; then
+  parent="${ASK_PARENT:-}"
+  pane_state=""
+  if [ -z "$parent" ] && [ -n "${HC_TERMINAL_ID:-}" ] && [ -f "$STATE_DIR/panes/${HC_TERMINAL_ID}.json" ]; then
+    pane_state="$STATE_DIR/panes/${HC_TERMINAL_ID}.json"
+    parent=$(jq -r '.parent // ""' "$pane_state" 2>/dev/null || true)
+  fi
+  if [ -n "$parent" ]; then
+    worker="${HC_TERMINAL_ID:-$client}"
+    summary=$(jq -r '.last_assistant_message // .transcript_summary // .reason // "finished"' <<<"$input" | head -n 15 | tr '\r\t' '  ' | cut -c1-400)
+    "$HC_BIN" send "$parent" "REPORT($worker): $summary" >/dev/null 2>&1 || true
+    [ -n "$pane_state" ] && rm -f "$pane_state"
+  fi
+  exit 0
 fi
 
 emit_decision() {
@@ -119,7 +153,40 @@ strip_safe_quotes() {
 }
 
 is_safe_internal_cmd() {
-  local raw="$1" stripped first_line bin sub delim last_line
+  local raw="$1" stripped first_line bin sub delim last_line ast
+
+  # Prefer shfmt AST inspection when available (avoids regex/awk lexer pitfalls).
+  if command -v shfmt >/dev/null 2>&1; then
+    ast=$(printf '%s\n' "$raw" | shfmt --tojson 2>/dev/null || true)
+    if [ -n "$ast" ]; then
+      # Reject if >1 statement, non-CallExpr, any CmdSubst/ProcSubst, or redirects
+      # (except a single heredoc for `privileged-request run ... <<DELIM`).
+      if jq -e '
+        (.Stmts | length) == 1
+        and .Stmts[0].Cmd.Type == "CallExpr"
+        and ([.. | objects | select(.Type? == "CmdSubst" or .Type? == "ProcSubst")] | length) == 0
+      ' >/dev/null 2>&1 <<<"$ast"; then
+        bin=$(jq -r '[.Stmts[0].Cmd.Args[0].Parts[]? | select(.Type == "Lit") | .Value] | join("")' <<<"$ast")
+        sub=$(jq -r '[.Stmts[0].Cmd.Args[1].Parts[]? | select(.Type == "Lit") | .Value] | join("")' <<<"$ast")
+        bin="${bin##*/}"
+        if jq -e '(.Stmts[0].Redirs // []) | length == 0' >/dev/null 2>&1 <<<"$ast"; then
+          case "$bin" in
+          ask | agent-quota | agents-index | orch | privileged-request) return 0 ;;
+          hc)
+            case "$sub" in
+            ls | get | read | send | wait | events | templates) return 0 ;;
+            esac
+            ;;
+          esac
+        elif [ "$bin" = "privileged-request" ] &&
+          jq -e '(.Stmts[0].Redirs | length) == 1 and .Stmts[0].Redirs[0].Hdoc != null' >/dev/null 2>&1 <<<"$ast"; then
+          return 0
+        fi
+      fi
+      return 1
+    fi
+  fi
+
   stripped=$(strip_safe_quotes "$raw")
 
   # Allow multiline heredoc only for `privileged-request run ... <<DELIM ... DELIM`.

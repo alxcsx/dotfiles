@@ -6,5 +6,28 @@
     "context7@claude-plugins-official": false,
     "session-report@claude-plugins-official": true,
     "superpowers@claude-plugins-official": false
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-gate --client claude"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-gate --client claude --event stop"
+          }
+        ]
+      }
+    ]
   }
 }

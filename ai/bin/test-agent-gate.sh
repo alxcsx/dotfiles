@@ -96,3 +96,10 @@ if command -v codex >/dev/null 2>&1; then
   codex execpolicy check -r "$rules" -- sudo apt update | jq -e '.decision == "forbidden"' >/dev/null
   codex execpolicy check -r "$rules" -- hc run bash | jq -e '.decision == null' >/dev/null
 fi
+
+# 9. Stop hook sends REPORT(...) to parent and cleans up pane state.
+mkdir -p "$AGENT_GATE_DIR/panes"
+printf '{"parent":"t1","readonly":true,"files":[]}\n' >"$AGENT_GATE_DIR/panes/t99.json"
+HC_TERMINAL_ID=t99 "$gate" --client claude --event stop <<<'{"hook_event_name":"Stop","last_assistant_message":"all done"}'
+[ ! -f "$AGENT_GATE_DIR/panes/t99.json" ]
+grep -q 'send t1 REPORT(t99): all done' "$FAKE_HC_LOG"

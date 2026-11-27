@@ -2,13 +2,35 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
         "hooks": [
           {
-            "type": "command",
             "command": "agent-gate --client codex",
+            "statusMessage": "Checking permission gate...",
             "timeout": 120,
-            "statusMessage": "Checking permission gate..."
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash '/home/alexcs/.codex/herdr-agent-state.sh' session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "agent-gate --client codex --event stop",
+            "timeout": 15,
+            "type": "command"
           }
         ]
       }

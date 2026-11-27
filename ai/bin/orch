@@ -13,27 +13,11 @@ if ! command -v hc >/dev/null 2>&1; then
 fi
 
 pane_running() {
-  hc ls --json 2>/dev/null | grep -q "\"name\":\"$1\""
-}
-
-# Forward the caller's environment to hc run: herdr-core (especially when
-# started by herdr-app) has a bare GUI environment without XDG_*,
-# CLAUDE_CONFIG_DIR, COPILOT_HOME, PATH, etc. Skip terminal/session-specific
-# variables so each pane gets a clean terminal identity.
-build_env_args() {
-  local var
-  env_args=()
-  for var in $(compgen -e); do
-    case "$var" in
-    HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | \
-      ITERM_* | KITTY_* | WEZTERM_* | ALACRITTY_* | TMUX* | ZELLIJ* | \
-      ANTIGRAVITY_* | __CF* | __MISE_ORIG_PATH | Apple_PubSub_* | \
-      LaunchInstanceID | SECURITYSESSIONID | COMMAND_MODE)
-      continue
-      ;;
-    esac
-    env_args+=("$var=${!var}")
-  done
+  if command -v jq >/dev/null 2>&1; then
+    hc ls --json 2>/dev/null | jq -e --arg n "$1" 'any(.[]; .name == $n)' >/dev/null 2>&1
+  else
+    hc ls --json 2>/dev/null | grep -q "\"name\":\"$1\""
+  fi
 }
 
 start_pane() {
@@ -44,14 +28,14 @@ start_pane() {
   append_permission_args "$agent" interactive ""
   # Outlive this launcher so closing the terminal does not kill the agents.
   hc run --bg --outlive-parent --name "$name" --cwd "$PWD" \
-    env "${env_args[@]}" "${argv[@]}" >/dev/null
+    env "${clean_env_args[@]}" "${argv[@]}" >/dev/null
 }
 
 # hc keeps terminals in the background. The app only shows terminals that
 # have a pane, so give each one a tab (idempotent when it already has one).
 show_in_app() {
   local name="$1" id
-  id=$(hc get "$name" --json 2>/dev/null | sed -n 's/.*"address":"\([^"]*\)".*/\1/p')
+  id=$(hc_get_field "$name" address)
   if [ -n "$id" ]; then
     herdr-app do terminal.keep --terminal "$id" --place tab >/dev/null || true
   fi
@@ -97,7 +81,7 @@ fi
 # own set. `ask` resolves names the same way.
 ws=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -c 'A-Za-z0-9_\n-' '-')
 
-build_env_args
+build_clean_env
 
 started=()
 [ $# -gt 0 ] || set -- omp agy claude copilot codex

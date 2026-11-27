@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Delegate to another agent over Herdr core (hc), or run it headless.
-#   ask [--effort <level>] [--sudo <reason>] <agent[:model]> <task...>
+#   ask [--effort <level>] [--sudo <reason>] [--worktree] <agent[:model]> <task...>
 #   ask --reply <terminal> <text...>                     answer whoever delegated to you
 #   ask --allow <req-id> [reason...]                     approve a PERM_REQUEST from agent-gate
 #   ask --deny <req-id> [reason...]                      deny a PERM_REQUEST from agent-gate
 #   ask --pending                                        list pending permission requests
-#   ask --headless [--effort <level>] [--sudo <reason>] <agent[:model]> <task...>
-#   ask [--headless] [--effort <level>] [--sudo <reason>] <agent[:model]> --spec <file.json>
+#   ask --verify <spec.json> [workdir]                   run spec accept[] commands deterministically
+#   ask --land <worktree-path>                           rebase (or merge) worktree onto base branch and remove it
+#   ask --abort-worktree <worktree-path>                 discard a worktree and its branch
+#   ask --headless [--effort <level>] [--sudo <reason>] [--worktree] <agent[:model]> <task...>
+#   ask [--headless] [--effort <level>] [--sudo <reason>] [--worktree] <agent[:model]> --spec <file.json>
 # Agents: omp, claude, agy, copilot, codex, feynman (see ~/.omp/agent/AGENTS.md).
 set -euo pipefail
 
@@ -17,7 +20,7 @@ SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
 GATE_DIR="${AGENT_GATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/agent-gate}"
 
 usage() {
-  sed -n '2,10s/^# \{0,1\}//p' "$0" >&2
+  sed -n '2,13s/^# \{0,1\}//p' "$0" >&2
   exit 2
 }
 
@@ -31,9 +34,9 @@ herdr_agent() {
 }
 
 self_name() {
-  hc get "$HC_TERMINAL_ID" --json 2>/dev/null |
-    sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1 |
-    grep . || echo "$HC_TERMINAL_ID"
+  local name
+  name=$(hc_get_field "$HC_TERMINAL_ID" name)
+  [ -n "$name" ] && printf '%s' "$name" || printf '%s' "$HC_TERMINAL_ID"
 }
 
 # This workspace's pane for the agent (and model/effort), else one named after it,
@@ -51,10 +54,15 @@ find_terminal() {
   done
   [ -z "${2:-}" ] && [ -z "${3:-}" ] || return 0
   agent=$(herdr_agent "$1")
-  hc ls --json 2>/dev/null | tr '{' '\n' |
-    grep "\"agent\":\"$agent\"" | grep '"state":"live"' |
-    grep -v "\"address\":\"${HC_TERMINAL_ID:-}\"" |
-    sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true
+  if command -v jq >/dev/null 2>&1; then
+    hc ls --json 2>/dev/null | jq -r --arg a "$agent" --arg self "${HC_TERMINAL_ID:-}" \
+      '[.[] | select(.agent == $a and .state == "live" and .address != $self) | .address][0] // empty' 2>/dev/null || true
+  else
+    hc ls --json 2>/dev/null | tr '{' '\n' |
+      grep "\"agent\":\"$agent\"" | grep '"state":"live"' |
+      grep -v "\"address\":\"${HC_TERMINAL_ID:-}\"" |
+      sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true
+  fi
 }
 
 # Write a decision for a pending agent-gate permission request atomically.
@@ -93,7 +101,7 @@ write_pane_context() {
   local target="$1" spec_file="${2:-}"
   command -v jq >/dev/null 2>&1 || return 0
   local target_id
-  target_id=$(hc get "$target" --json 2>/dev/null | sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true)
+  target_id=$(hc_get_field "$target" address)
   [ -n "$target_id" ] || return 0
   mkdir -p "$GATE_DIR/panes"
   local tmp="$GATE_DIR/panes/.${target_id}.$$.tmp"
@@ -109,22 +117,27 @@ write_pane_context() {
   mv "$tmp" "$GATE_DIR/panes/${target_id}.json"
 }
 
-# Validate a task spec and render it as the message to send. $2 is the reply
-# instruction appended at the end (it differs for terminal and headless runs).
+# Validate a task spec (preferring check-jsonschema when installed) and render
+# it as the message to send. $2 is the reply instruction appended at the end.
 render_spec() {
-  local file="$1" reply="$2"
+  local file="$1" reply="$2" schema="$SCRIPT_DIR/../agents/task.schema.json"
   command -v jq >/dev/null 2>&1 || { echo "ask: --spec needs jq" >&2; exit 1; }
-  jq -e '
-    type == "object"
-    and (.goal | type == "string" and length > 0)
-    and (.accept | type == "array" and length > 0 and all(type == "string" and length > 0))
-    and ((.context // []) | type == "array")
-    and ((.files // []) | type == "array")
-    and ((.report_max_lines // 15) | type == "number")
-    and ((.needs_sudo // false) | type == "boolean")
-    and ((.sudo_reason // "") | type == "string")
-  ' "$file" >/dev/null 2>&1 ||
-    { echo "ask: invalid spec '$file': need goal and a non-empty accept[] of commands (agents/task.schema.json)" >&2; exit 1; }
+  if command -v check-jsonschema >/dev/null 2>&1 && [ -f "$schema" ]; then
+    check-jsonschema --schemafile "$schema" "$file" >/dev/null 2>&1 ||
+      { echo "ask: invalid spec '$file' against $schema" >&2; exit 1; }
+  else
+    jq -e '
+      type == "object"
+      and (.goal | type == "string" and length > 0)
+      and (.accept | type == "array" and length > 0 and all(type == "string" and length > 0))
+      and ((.context // []) | type == "array")
+      and ((.files // []) | type == "array")
+      and ((.report_max_lines // 15) | type == "number")
+      and ((.needs_sudo // false) | type == "boolean")
+      and ((.sudo_reason // "") | type == "string")
+    ' "$file" >/dev/null 2>&1 ||
+      { echo "ask: invalid spec '$file': need goal and a non-empty accept[] of commands (agents/task.schema.json)" >&2; exit 1; }
+  fi
   jq -r --arg reply "$reply" '
     (.report_max_lines // 15) as $n
     | (if (.needs_sudo // false) or ((.sudo_reason // "") | length > 0) then
@@ -135,10 +148,76 @@ render_spec() {
     + "Goal: \(.goal)\n"
     + (if (.context // []) | length > 0 then "Read first: \(.context | join(", ")).\n" else "" end)
     + (if (.files // []) | length > 0 then "You may edit only: \(.files | join(", ")).\n" else "Read-only: do not edit files.\n" end)
-    + "Acceptance: run each command, report pass or fail with the key output line.\n"
+    + "Acceptance:\n"
     + (.accept | map("- " + .) | join("\n"))
-    + "\n" + ($reply | sub("@N@"; ($n | tostring)))
+    + (if ($reply | length) > 0 then "\n" + ($reply | sub("@N@"; ($n | tostring))) else "" end)
   ' "$file"
+}
+
+# Deterministically execute each command in spec.accept[] and report pass/fail.
+verify_spec_accept() {
+  local spec="$1" dir="${2:-$PWD}" cmd out rc=0 failed=0
+  command -v jq >/dev/null 2>&1 || { echo "ask: --verify needs jq" >&2; return 1; }
+  [ -f "$spec" ] || { echo "ask: spec not found: $spec" >&2; return 1; }
+  while IFS= read -r cmd; do
+    [ -n "$cmd" ] || continue
+    out=$(cd "$dir" && bash -c "$cmd" 2>&1) && rc=0 || rc=$?
+    last_line=$(printf '%s\n' "$out" | awk 'NF{l=$0} END{print l}')
+    if [ "$rc" -eq 0 ]; then
+      printf '[PASS] %s%s\n' "$cmd" "${last_line:+ — $last_line}"
+    else
+      printf '[FAIL (exit %d)] %s%s\n' "$rc" "$cmd" "${last_line:+ — $last_line}" >&2
+      failed=1
+    fi
+  done < <(jq -r '(.accept // [])[]' "$spec")
+  return "$failed"
+}
+
+# Create an isolated git worktree for a delegated task.
+create_worktree() {
+  local tag="$1" repo_root branch wt_dir
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "ask: --worktree requires a git repository" >&2; exit 1; }
+  branch="ask/${tag}-$(date +%s)-$$"
+  wt_dir="${repo_root}/.git/ask-worktrees/${tag}-$$"
+  mkdir -p "$(dirname "$wt_dir")"
+  git -C "$repo_root" worktree add -b "$branch" "$wt_dir" HEAD >/dev/null
+  printf '%s' "$wt_dir"
+}
+
+# Rebase (or merge if rebase conflicts) a worktree branch back into the current
+# branch and remove the worktree + branch. Never creates a PR.
+land_worktree() {
+  local wt="$1" repo_root wt_branch base_branch
+  [ -d "$wt" ] || { echo "ask: worktree not found: $wt" >&2; exit 1; }
+  repo_root=$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  repo_root=$(cd "$repo_root/.." && pwd)
+  wt_branch=$(git -C "$wt" rev-parse --abbrev-ref HEAD)
+  base_branch=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD)
+  if [ -n "$(git -C "$wt" status --porcelain)" ]; then
+    echo "ask: worktree '$wt' has uncommitted changes; commit or discard them first" >&2
+    exit 1
+  fi
+  if git -C "$wt" rebase "$base_branch" >/dev/null 2>&1; then
+    git -C "$repo_root" merge --ff-only "$wt_branch"
+  else
+    git -C "$wt" rebase --abort >/dev/null 2>&1 || true
+    echo "ask: rebase conflicted; falling back to direct merge" >&2
+    git -C "$repo_root" merge --no-edit "$wt_branch"
+  fi
+  git -C "$repo_root" worktree remove "$wt"
+  git -C "$repo_root" branch -d "$wt_branch"
+  echo "landed $wt_branch into $base_branch and removed worktree"
+}
+
+abort_worktree() {
+  local wt="$1" repo_root wt_branch
+  [ -d "$wt" ] || { echo "ask: worktree not found: $wt" >&2; exit 1; }
+  repo_root=$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  repo_root=$(cd "$repo_root/.." && pwd)
+  wt_branch=$(git -C "$wt" rev-parse --abbrev-ref HEAD)
+  git -C "$repo_root" worktree remove --force "$wt"
+  git -C "$repo_root" branch -D "$wt_branch" >/dev/null 2>&1 || true
+  echo "aborted worktree $wt ($wt_branch)"
 }
 
 # Build the task text from `--spec <file>` or the remaining words.
@@ -178,6 +257,7 @@ parse_target() {
 }
 
 headless=0
+worktree=0
 effort=""
 sudo_reason=""
 while [ $# -gt 0 ]; do
@@ -206,6 +286,25 @@ while [ $# -gt 0 ]; do
   --pending)
     list_pending_requests
     exit 0
+    ;;
+  --verify)
+    [ $# -ge 2 ] || usage
+    verify_spec_accept "$2" "${3:-$PWD}"
+    exit $?
+    ;;
+  --land)
+    [ $# -eq 2 ] || usage
+    land_worktree "$2"
+    exit 0
+    ;;
+  --abort-worktree)
+    [ $# -eq 2 ] || usage
+    abort_worktree "$2"
+    exit 0
+    ;;
+  --worktree)
+    worktree=1
+    shift
     ;;
   --headless)
     headless=1
@@ -260,6 +359,18 @@ if [ -n "$effective_sudo" ]; then
   echo "ask: SUDO NOTICE — this task may request elevation via privileged-request ($effective_sudo)" >&2
 fi
 
+# Apply programmatic quota routing before building CLI flags.
+apply_quota_routing "$SCRIPT_DIR/agent-quota" "$agent"
+
+# Use an isolated git worktree when requested for write tasks.
+workdir="$PWD"
+wt_path=""
+if [ "$worktree" = 1 ] && [ "$spec_readonly" = 0 ]; then
+  wt_path=$(create_worktree "$agent")
+  workdir="$wt_path"
+  echo "ask: created worktree $wt_path (land with: ask --land $wt_path)" >&2
+fi
+
 if [ "$headless" = 1 ]; then
   task=$(build_task "Reply in at most @N@ lines." "$sudo_reason" "$@")
   perm_mode=headless
@@ -278,7 +389,6 @@ if [ "$headless" = 1 ]; then
     argv=(omp -p "$task")
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
-    exec "${argv[@]}"
     ;;
   claude)
     argv=(claude -p)
@@ -286,20 +396,17 @@ if [ "$headless" = 1 ]; then
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
     argv+=("$task")
-    exec "${argv[@]}"
     ;;
   copilot)
     argv=(copilot -p "$task" -s)
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
     append_permission_args "$agent" "$perm_mode" "$spec_file"
-    exec "${argv[@]}"
     ;;
   agy)
     argv=(agy -p "$task")
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
-    exec "${argv[@]}"
     ;;
   codex)
     argv=(codex exec)
@@ -307,19 +414,27 @@ if [ "$headless" = 1 ]; then
     append_effort_args "$agent" "$effort"
     append_permission_args "$agent" "$perm_mode" "$spec_file"
     argv+=("$task")
-    exec "${argv[@]}"
     ;;
   feynman)
     argv=(feynman "--prompt=$task")
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
-    exec "${argv[@]}"
     ;;
   *)
     echo "ask: no headless mode for '$agent'" >&2
     exit 1
     ;;
   esac
+
+  allow_setuid=0
+  [ -n "$effective_sudo" ] && allow_setuid=1
+  rc=0
+  (cd "$workdir" && exec_with_no_new_privs "$allow_setuid" "${argv[@]}") || rc=$?
+  if [ -n "$spec_file" ] && [ -f "$spec_file" ]; then
+    echo "--- deterministic acceptance verification ---"
+    verify_spec_accept "$spec_file" "$workdir" || rc=$?
+  fi
+  exit "$rc"
 fi
 
 need_hc
@@ -331,17 +446,18 @@ if [ -z "$target" ]; then
   append_model_args "$agent" "$model" "$effort"
   append_effort_args "$agent" "$effort"
   append_permission_args "$agent" interactive ""
-  # hc run starts programs with the core's bare environment; pass ours.
-  envs=("ASK_PARENT=$HC_TERMINAL_ID")
-  while IFS='=' read -r k _; do
-    case "$k" in HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | ANTIGRAVITY_* | ASK_PARENT | ASK_READONLY | ASK_SPEC_FILES) ;; *) envs+=("$k=${!k}") ;; esac
-  done < <(env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true)
-  hc run --bg --outlive-parent --name "$target" --cwd "$PWD" env "${envs[@]}" "${argv[@]}" >/dev/null
+  build_clean_env
+  hc run --bg --outlive-parent --name "$target" --cwd "$workdir" env "ASK_PARENT=$HC_TERMINAL_ID" "${clean_env_args[@]}" "${argv[@]}" >/dev/null
   # A send during boot can be dropped.
   hc wait "$target" >/dev/null
 fi
 
 write_pane_context "$target" "$spec_file"
-task=$(build_task "When finished, reply by running: ask --reply $HC_TERMINAL_ID '<at most @N@ lines, or a .agents/handoff/ path>'" "$sudo_reason" "$@")
+# Agents with native Stop hooks (claude, codex) report automatically on turn end.
+case "$agent" in
+claude | codex) reply_instr="" ;;
+*) reply_instr="When finished, reply by running: ask --reply $HC_TERMINAL_ID '<at most @N@ lines, or a .agents/handoff/ path>'" ;;
+esac
+task=$(build_task "$reply_instr" "$sudo_reason" "$@")
 hc send "$target" "$task"
 echo "sent to $target; the reply will arrive as REPORT(...)"

@@ -84,11 +84,12 @@ link_file "$MODULE_DIR/claude/agents/reviewer.md" "$CLAUDE_HOME/agents/reviewer.
 
 # enabledPlugins (claude/settings.json) only switches plugins on; fetch them too.
 install_claude_plugins() {
+  command -v claude >/dev/null 2>&1 || return 0
   local p installed
-  installed=$(claude plugin list 2>/dev/null)
+  installed=$(claude plugin list 2>/dev/null || true)
   for p in $(node -e 'console.log(Object.keys(require(process.argv[1]).enabledPlugins).join(" "))' \
     "$MODULE_DIR/claude/settings.json"); do
-    grep -qF "$p" <<<"$installed" || claude plugin install -y "$p" || return 1
+    grep -qF "$p" <<<"$installed" || claude plugin install "$p" || return 1
   done
 }
 step "Install Claude Code plugins" install_claude_plugins
@@ -125,11 +126,16 @@ step --skip-if '[ -f "$COPILOT_DIR/hooks/herdr-agent-state.sh" ]' \
   "Install Herdr Copilot integration" \
   env COPILOT_HOME="$COPILOT_DIR" herdr integration install copilot
 
+step --skip-if '[ -f "$CODEX_DIR/herdr-agent-state.sh" ]' \
+  "Install Herdr Codex integration" \
+  env CODEX_HOME="$CODEX_DIR" herdr integration install codex
+
 link_file -m "Install ask (agent delegation)" "$MODULE_DIR/bin/ask" "$BIN_DIR/ask"
 link_file -m "Install agent-gate (permission hook)" "$MODULE_DIR/bin/agent-gate" "$BIN_DIR/agent-gate"
 link_file -m "Install orch launcher" "$MODULE_DIR/bin/orch" "$BIN_DIR/orch"
 link_file -m "Install agent-quota board" "$MODULE_DIR/bin/agent-quota" "$BIN_DIR/agent-quota"
 link_file -m "Install privileged request helper" "$MODULE_DIR/bin/privileged-request" "$BIN_DIR/privileged-request"
+link_file -m "Install Chrome DevTools MCP launcher" "$MODULE_DIR/bin/mcp-chrome-devtools" "$BIN_DIR/mcp-chrome-devtools"
 step --run-if '[ -L "$BIN_DIR/quota" ]' "Remove old quota link" rm "$BIN_DIR/quota"
 link_file -m "Install agents-index" "$MODULE_DIR/bin/agents-index" "$BIN_DIR/agents-index"
 step --run-if '[ -L "$BIN_DIR/dev-orch" ]' "Remove old dev-orch link" rm "$BIN_DIR/dev-orch"

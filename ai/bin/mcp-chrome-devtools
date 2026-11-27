@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Cross-platform launcher for chrome-devtools-mcp.
+# Keeps the macOS Google Chrome app path when present, discovers common Linux
+# Chromium/Chrome binaries, and otherwise lets chrome-devtools-mcp auto-detect.
+set -euo pipefail
+
+exec_path=""
+if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
+  exec_path="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+else
+  for bin in google-chrome-stable google-chrome chromium chromium-browser brave brave-browser; do
+    if found=$(command -v "$bin" 2>/dev/null); then
+      exec_path="$found"
+      break
+    fi
+  done
+fi
+
+args=(-y "chrome-devtools-mcp@1.6.0" --isolated)
+[ -n "$exec_path" ] && args+=(--executablePath "$exec_path")
+exec npx "${args[@]}" "$@"

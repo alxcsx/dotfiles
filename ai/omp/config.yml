@@ -4,7 +4,7 @@ modelRoles:
   task: opencode-go/deepseek-v4.1-flash:medium
   smol: opencode-go/deepseek-v4.1-flash:low
   commit: opencode-go/deepseek-v4.1-flash:low
-  default: opencode-go/beam-free
+  default: opencode-go/hy4-flash-free
 defaultThinkingLevel: medium
 enabledProviders:
   - opencode-go

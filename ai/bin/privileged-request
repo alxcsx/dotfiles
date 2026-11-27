@@ -13,6 +13,16 @@ done
 SCRIPT_DIR=$(cd -P "$(dirname "$source")" && pwd)
 REPO_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
 
+has_no_new_privs() {
+  [ -r /proc/self/status ] && grep -Eq '^NoNewPrivs:[[:space:]]*1$' /proc/self/status
+}
+
+use_pkexec() {
+  command -v pkexec >/dev/null 2>&1 || return 1
+  has_no_new_privs && return 1
+  [ -z "${SSH_TTY:-}${SSH_CONNECTION:-}" ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]
+}
+
 usage() {
   sed -n '2,4s/^# \{0,1\}//p' "$0" >&2
   exit 2
@@ -24,7 +34,7 @@ check)
   case "$platform" in
   darwin*) command -v osascript >/dev/null && echo 'macOS: native administrator dialog available' ;;
   linux*)
-    if command -v pkexec >/dev/null; then
+    if use_pkexec; then
       echo 'Linux: Polkit dialog available'
     elif [ -x "$REPO_DIR/arch_server/sudo-queue/sudo-queue" ]; then
       echo 'Linux: headless Telegram approval queue available'
@@ -59,7 +69,7 @@ darwin*)
     -e 'end run' "$tmp"
   ;;
 linux*)
-  if command -v pkexec >/dev/null; then
+  if use_pkexec; then
     pkexec /bin/bash "$tmp"
   else
     queue="$REPO_DIR/arch_server/sudo-queue/sudo-queue"
