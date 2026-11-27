@@ -47,7 +47,7 @@ find_terminal() {
     if [ "$name" = "$1" ] && { [ -n "${2:-}" ] || [ -n "${3:-}" ]; }; then
       continue
     fi
-    if hc get "$name" >/dev/null 2>&1; then
+    if [ "$(hc_get_field "$name" state)" = live ]; then
       echo "$name"
       return
     fi
@@ -451,7 +451,6 @@ if [ -z "$target" ]; then
   # A send during boot can be dropped.
   hc wait "$target" >/dev/null
   if command -v herdr-app >/dev/null 2>&1 && herdr-app status >/dev/null 2>&1; then
-    local tid
     tid=$(hc_get_field "$target" address)
     [ -n "$tid" ] && herdr-app do terminal.keep --terminal "$tid" --place tab >/dev/null 2>&1 || true
   fi

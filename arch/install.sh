@@ -26,7 +26,7 @@ else
 fi
 
 # Mid-install auto-reloads can catch a half-linked state; end on the complete config.
-step --skip-if '[ -z "$HYPRLAND_INSTANCE_SIGNATURE" ]' \
+step --skip-if '! command -v hyprctl >/dev/null 2>&1 || [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]' \
 	"Reload Hyprland config" \
 	hyprctl reload
 

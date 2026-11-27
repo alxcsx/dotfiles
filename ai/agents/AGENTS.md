@@ -60,7 +60,7 @@ Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and 
 
 ## Delegating (only when `HC_TERMINAL_ID` is set)
 
-- `ask [--effort <level>] <agent[:model]> <task...>` is the default; it delegates in that agent's Herdr terminal; the answer
+- `ask [--effort <level>] <agent[:model]> <task...>` is the default and **required** way to delegate: every delegated agent must run in Herdr (never pass `--headless` inside Herdr, as `--headless` runs a hidden subprocess that does not appear in Herdr). The answer
   arrives as `REPORT(<agent>): ...`. When a task came from another agent,
   finish with the reply command it gave. `--effort` maps to each agent's reasoning/thinking flag (`omp`, `claude`, `agy`, `copilot`, `codex`) and `agy` short names (`neon`, `hydrogen`, `argon`, `carbon`, `flash`) resolve to full `agy models` IDs (e.g., `gemini-4-argon-medium`).
 - `ask <agent>:<model> ...` targets (or starts) a pane for that model, e.g.
@@ -74,7 +74,7 @@ Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and 
   receives `PERM_REQUEST(<id>) ...`. Review it and run `ask --allow <id>` or
   `ask --deny <id> "<reason>"` (`ask --pending` lists open requests). `sudo`
   cannot be approved by an orchestrator and always requires `privileged-request`.
-- `ask --headless <agent> "<task>"` is a one-shot run (`omp`, `claude`, `copilot`).
+- `ask --headless <agent> "<task>"` is ONLY for when `HC_TERMINAL_ID` is unset (outside Herdr); do not use it for orchestration, because headless runs bypass Herdr and will not appear in Herdr.
 - `agent-quota` shows status, a routing recommendation, and known reset countdowns.
   OMP is live from `omp usage`. For other subscription agents, copy the reset timestamp
   shown by the provider: `agent-quota set claude low 2026-11-28T02:00:00-03:00`.

@@ -85,6 +85,12 @@ emit_decision() {
     else
       jq -n --arg d "$decision" '{permissionDecision: $d}'
     fi
+  elif [ "$client" = codex ]; then
+    # Codex PreToolUse only supports permissionDecision: "deny" (with a reason);
+    # allowing a call is signaled by exiting 0 with no output.
+    [ "$decision" = deny ] || return 0
+    jq -n --arg r "${reason:-Blocked by agent-gate}" \
+      '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
   else
     if [ -n "$reason" ]; then
       jq -n --arg d "$decision" --arg r "$reason" \

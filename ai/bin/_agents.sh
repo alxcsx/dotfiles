@@ -77,10 +77,17 @@ append_permission_args() {
   local a="$1" mode="${2:-interactive}" spec="${3:-}"
   case "$a" in
   codex)
+    local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
     case "$mode" in
     readonly) argv+=(-s read-only -a never) ;;
-    headless) argv+=(-s workspace-write -a never) ;;
-    *) argv+=(-s workspace-write --approve-for-me) ;;
+    headless)
+      argv+=(-s workspace-write -a never)
+      [ -d "$state_dir" ] && argv+=(--add-dir "$state_dir")
+      ;;
+    *)
+      argv+=(-s workspace-write --approve-for-me)
+      [ -d "$state_dir" ] && argv+=(--add-dir "$state_dir")
+      ;;
     esac
     ;;
   copilot)

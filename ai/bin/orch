@@ -102,13 +102,14 @@ if [ ${#started[@]} -eq 0 ]; then
 fi
 
 if [ "$gui" = 1 ]; then
+  herdr-app do space.new --name "$ws" --folder "$PWD" >/dev/null || true
   for agent in "${started[@]}"; do
     show_in_app "$agent"
   done
   if [ "$inside_herdr" = 1 ]; then
-    printf 'Added panes to this Herdr window: %s\n' "${started[*]}"
+    printf 'Created Herdr space "%s". Panes: %s\n' "$ws" "${started[*]}"
   else
-    printf 'Opened Herdr app. Panes: %s\n' "${started[*]}"
+    printf 'Opened Herdr space "%s". Panes: %s\n' "$ws" "${started[*]}"
   fi
   exit 0
 fi

@@ -51,7 +51,7 @@ approver=$!
 
 out=$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}' | ASK_PARENT=t1 "$gate" --client codex)
 wait "$approver"
-jq -e '.hookSpecificOutput.permissionDecision == "allow"' >/dev/null <<<"$out"
+[ -z "$out" ]
 grep -q 'PERM_REQUEST(' "$FAKE_HC_LOG"
 
 # 5. Orchestrator denial returns deny + reason to copilot.
@@ -75,10 +75,10 @@ jq -e '.permissionDecision == "deny" and .permissionDecisionReason == "not ready
 
 # 6. Internal tools (ask --reply with keywords/semicolons in quotes, hc ls, agent-quota) are allowed.
 out=$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"ask --reply t72 \"Done; git push worked, sudo not needed, curl ok\""}}' | ASK_PARENT=t1 "$gate" --client codex)
-jq -e '.hookSpecificOutput.permissionDecision == "allow"' >/dev/null <<<"$out"
+[ -z "$out" ]
 
 out=$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"hc ls --json"}}' | ASK_PARENT=t1 "$gate" --client codex)
-jq -e '.hookSpecificOutput.permissionDecision == "allow"' >/dev/null <<<"$out"
+[ -z "$out" ]
 
 # 7. Command substitution or chaining on internal tools is NOT bypassed.
 out=$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"ask --reply t72 \"$(sudo id)\""}}' | ASK_PARENT=t1 "$gate" --client codex)
