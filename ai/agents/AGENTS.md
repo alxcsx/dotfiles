@@ -33,7 +33,9 @@ tests and troubleshoots; do not spend credits on it.
   `omp`.
 - Keep context small: one task per session (`/clear` between tasks), and do not
   paste logs or file dumps into a session; send a path.
-- Never run `sudo` directly. Submit one reviewed, idempotent script with
+- Never run `sudo` directly. Warn the user at the start of the task whenever
+  elevation will be needed (or pass `ask --sudo "<reason>"` / set `needs_sudo`
+  in `--spec`). Submit one reviewed, idempotent script with
   `privileged-request run "reason and rollback"`; macOS and desktop Linux require
   an OS authentication dialog, while headless Linux queues it for the operator.
 - Start from `.agents/INDEX.md` (run `agents-index` to refresh it) and open
@@ -66,6 +68,12 @@ Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and 
   `orch omp:deepseek-v4.1-flash omp:deepseek-v4-pro agy:hydrogen agy:argon`.
 - `ask <agent> --spec <file.json>` is optional, for tasks that need exact
   acceptance commands (`agents/task.schema.json`).
+- Permission review: `codex` and `copilot` run sandboxed with `agent-gate`.
+  When a delegated worker requests a sensitive action (including `git push`,
+  destructive git ops, recursive `rm`, or out-of-spec writes), the orchestrator
+  receives `PERM_REQUEST(<id>) ...`. Review it and run `ask --allow <id>` or
+  `ask --deny <id> "<reason>"` (`ask --pending` lists open requests). `sudo`
+  cannot be approved by an orchestrator and always requires `privileged-request`.
 - `ask --headless <agent> "<task>"` is a one-shot run (`omp`, `claude`, `copilot`).
 - `agent-quota` shows status, a routing recommendation, and known reset countdowns.
   OMP is live from `omp usage`. For other subscription agents, copy the reset timestamp

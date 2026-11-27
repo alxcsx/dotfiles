@@ -41,6 +41,7 @@ start_pane() {
   pane_running "$name" && return 0
   local argv=("$(command -v "$agent")")
   append_model_args "$agent" "$model" ""
+  append_permission_args "$agent" interactive ""
   # Outlive this launcher so closing the terminal does not kill the agents.
   hc run --bg --outlive-parent --name "$name" --cwd "$PWD" \
     env "${env_args[@]}" "${argv[@]}" >/dev/null
@@ -54,6 +55,21 @@ show_in_app() {
   if [ -n "$id" ]; then
     herdr-app do terminal.keep --terminal "$id" --place tab >/dev/null || true
   fi
+}
+
+# Starting agy through orch expresses trust in the current workspace. Confirm
+# only its folder trust dialog; leave all other permission prompts untouched.
+confirm_agy_workspace() {
+  local name="$1" screen _
+  for _ in {1..50}; do
+    screen=$(hc read "$name" 2>/dev/null || true)
+    if [[ "$screen" == *"Do you trust the contents of this project?"* &&
+          "$screen" == *"> Yes, I trust this folder"* ]]; then
+      hc send --force "$name" "" >/dev/null
+      return
+    fi
+    sleep 0.2
+  done
 }
 
 gui=0
@@ -91,6 +107,9 @@ for spec in "$@"; do
   command -v "$agent" >/dev/null 2>&1 || continue
   name=$(pane_name "$agent" "$model" "" "$ws")
   start_pane "$name" "$agent" "$model"
+  if [ "$agent" = agy ]; then
+    confirm_agy_workspace "$name" >/dev/null 2>&1 &
+  fi
   started+=("$name")
 done
 if [ ${#started[@]} -eq 0 ]; then

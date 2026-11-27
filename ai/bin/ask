@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Delegate to another agent over Herdr core (hc), or run it headless.
-#   ask [--effort <level>] <agent[:model]> <task...>     send to its terminal, reply comes back
+#   ask [--effort <level>] [--sudo <reason>] <agent[:model]> <task...>
 #   ask --reply <terminal> <text...>                     answer whoever delegated to you
-#   ask --headless [--effort <level>] <agent[:model]> <task...>  one-shot run, prints the answer
-#   ask [--headless] [--effort <level>] <agent[:model]> --spec <file.json>
+#   ask --allow <req-id> [reason...]                     approve a PERM_REQUEST from agent-gate
+#   ask --deny <req-id> [reason...]                      deny a PERM_REQUEST from agent-gate
+#   ask --pending                                        list pending permission requests
+#   ask --headless [--effort <level>] [--sudo <reason>] <agent[:model]> <task...>
+#   ask [--headless] [--effort <level>] [--sudo <reason>] <agent[:model]> --spec <file.json>
 # Agents: omp, claude, agy, copilot, codex, feynman (see ~/.omp/agent/AGENTS.md).
 set -euo pipefail
 
@@ -11,8 +14,10 @@ SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
 # shellcheck source=_agents.sh
 . "$SCRIPT_DIR/_agents.sh"
 
+GATE_DIR="${AGENT_GATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/agent-gate}"
+
 usage() {
-  sed -n '2,7s/^# \{0,1\}//p' "$0" >&2
+  sed -n '2,10s/^# \{0,1\}//p' "$0" >&2
   exit 2
 }
 
@@ -52,6 +57,58 @@ find_terminal() {
     sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true
 }
 
+# Write a decision for a pending agent-gate permission request atomically.
+write_gate_decision() {
+  local decision="$1" req_id="$2" reason="${3:-}"
+  command -v jq >/dev/null 2>&1 || { echo "ask: --$decision needs jq" >&2; exit 1; }
+  local req_dir="$GATE_DIR/requests"
+  if [ ! -f "$req_dir/${req_id}.req.json" ]; then
+    echo "ask: no pending request '$req_id' in $req_dir" >&2
+    exit 1
+  fi
+  local tmp="$req_dir/.${req_id}.decision.$$.tmp"
+  jq -n --arg d "$decision" --arg r "$reason" '{decision: $d, reason: $r}' >"$tmp"
+  mv "$tmp" "$req_dir/${req_id}.decision.json"
+  echo "$decision $req_id${reason:+ ($reason)}"
+}
+
+list_pending_requests() {
+  local req_dir="$GATE_DIR/requests" f found=0
+  [ -d "$req_dir" ] || { echo "no pending permission requests"; return 0; }
+  for f in "$req_dir"/*.req.json; do
+    [ -f "$f" ] || continue
+    found=1
+    if command -v jq >/dev/null 2>&1; then
+      jq -r '"\(.id)\t[\(.tag)]\t\(.worker) (\(.client) \(.tool)): \(.command // .path)"' "$f"
+    else
+      basename "$f" .req.json
+    fi
+  done
+  [ "$found" = 1 ] || echo "no pending permission requests"
+}
+
+# Persist delegation context for a pane so agent-gate works even on panes
+# started earlier by `orch`.
+write_pane_context() {
+  local target="$1" spec_file="${2:-}"
+  command -v jq >/dev/null 2>&1 || return 0
+  local target_id
+  target_id=$(hc get "$target" --json 2>/dev/null | sed -n 's/.*"address":"\([^"]*\)".*/\1/p' | head -n1 || true)
+  [ -n "$target_id" ] || return 0
+  mkdir -p "$GATE_DIR/panes"
+  local tmp="$GATE_DIR/panes/.${target_id}.$$.tmp"
+  if [ -n "$spec_file" ] && [ -f "$spec_file" ]; then
+    jq --arg parent "$HC_TERMINAL_ID" '{
+      parent: $parent,
+      readonly: (((.files // []) | length) == 0),
+      files: (.files // [])
+    }' "$spec_file" >"$tmp"
+  else
+    jq -n --arg parent "$HC_TERMINAL_ID" '{parent: $parent, readonly: false, files: []}' >"$tmp"
+  fi
+  mv "$tmp" "$GATE_DIR/panes/${target_id}.json"
+}
+
 # Validate a task spec and render it as the message to send. $2 is the reply
 # instruction appended at the end (it differs for terminal and headless runs).
 render_spec() {
@@ -64,11 +121,18 @@ render_spec() {
     and ((.context // []) | type == "array")
     and ((.files // []) | type == "array")
     and ((.report_max_lines // 15) | type == "number")
+    and ((.needs_sudo // false) | type == "boolean")
+    and ((.sudo_reason // "") | type == "string")
   ' "$file" >/dev/null 2>&1 ||
     { echo "ask: invalid spec '$file': need goal and a non-empty accept[] of commands (agents/task.schema.json)" >&2; exit 1; }
   jq -r --arg reply "$reply" '
     (.report_max_lines // 15) as $n
-    | "Goal: \(.goal)\n"
+    | (if (.needs_sudo // false) or ((.sudo_reason // "") | length > 0) then
+        "SUDO NOTICE: This task may require elevated privileges ("
+        + (if ((.sudo_reason // "") | length > 0) then .sudo_reason else "declared in spec" end)
+        + "). Warn the user up front before running privileged steps, never invoke sudo directly, and batch root commands into one `privileged-request run \"reason and rollback\"` call.\n"
+      else "" end)
+    + "Goal: \(.goal)\n"
     + (if (.context // []) | length > 0 then "Read first: \(.context | join(", ")).\n" else "" end)
     + (if (.files // []) | length > 0 then "You may edit only: \(.files | join(", ")).\n" else "Read-only: do not edit files.\n" end)
     + "Acceptance: run each command, report pass or fail with the key output line.\n"
@@ -79,13 +143,17 @@ render_spec() {
 
 # Build the task text from `--spec <file>` or the remaining words.
 build_task() {
-  local reply="$1"
-  shift
+  local reply="$1" sudo_note="$2"
+  shift 2
+  local prefix=""
+  if [ -n "$sudo_note" ]; then
+    prefix="SUDO NOTICE: This task may require elevated privileges ($sudo_note). Warn the user up front before running privileged steps, never invoke sudo directly, and batch root commands into one \`privileged-request run \"reason and rollback\"\` call."$'\n'
+  fi
   if [ "${1:-}" = --spec ]; then
     [ -n "${2:-}" ] || usage
-    render_spec "$2" "$reply"
+    printf '%s%s' "$prefix" "$(render_spec "$2" "$reply")"
   else
-    printf '%s\n%s' "$*" "${reply//@N@/15}"
+    printf '%s%s\n%s' "$prefix" "$*" "${reply//@N@/15}"
   fi
 }
 
@@ -111,6 +179,7 @@ parse_target() {
 
 headless=0
 effort=""
+sudo_reason=""
 while [ $# -gt 0 ]; do
   case "$1" in
   --reply)
@@ -119,6 +188,24 @@ while [ $# -gt 0 ]; do
     target="$2"
     shift 2
     exec hc send "$target" "REPORT($(self_name)): $*"
+    ;;
+  --allow)
+    [ $# -ge 2 ] || usage
+    req_id="$2"
+    shift 2
+    write_gate_decision allow "$req_id" "$*"
+    exit 0
+    ;;
+  --deny)
+    [ $# -ge 2 ] || usage
+    req_id="$2"
+    shift 2
+    write_gate_decision deny "$req_id" "$*"
+    exit 0
+    ;;
+  --pending)
+    list_pending_requests
+    exit 0
     ;;
   --headless)
     headless=1
@@ -133,6 +220,15 @@ while [ $# -gt 0 ]; do
     effort="${1#*=}"
     shift
     ;;
+  --sudo)
+    [ $# -ge 2 ] || usage
+    sudo_reason="$2"
+    shift 2
+    ;;
+  --sudo=*)
+    sudo_reason="${1#*=}"
+    shift
+    ;;
   -h | --help) usage ;;
   -*) usage ;;
   *) break ;;
@@ -143,12 +239,40 @@ done
 parse_target "$1"
 shift
 
-if [ -z "$effort" ] && [ "${1:-}" = --spec ] && [ -n "${2:-}" ] && command -v jq >/dev/null 2>&1; then
-  effort=$(jq -r '.effort // empty' "$2" 2>/dev/null || true)
+spec_file=""
+spec_readonly=0
+spec_sudo=""
+if [ "${1:-}" = --spec ] && [ -n "${2:-}" ]; then
+  spec_file="$2"
+  if command -v jq >/dev/null 2>&1 && [ -f "$spec_file" ]; then
+    [ -n "$effort" ] || effort=$(jq -r '.effort // empty' "$spec_file" 2>/dev/null || true)
+    [ "$(jq -r '(.files // []) | length' "$spec_file" 2>/dev/null || echo 1)" -eq 0 ] && spec_readonly=1
+    if [ "$(jq -r '.needs_sudo // false' "$spec_file" 2>/dev/null || echo false)" = true ] ||
+      [ -n "$(jq -r '.sudo_reason // empty' "$spec_file" 2>/dev/null || true)" ]; then
+      spec_sudo=$(jq -r 'if (.sudo_reason // "") != "" then .sudo_reason else "declared in spec" end' "$spec_file" 2>/dev/null || echo "declared in spec")
+    fi
+  fi
+fi
+
+# Warn up front if the task declares elevated privilege requirements.
+effective_sudo="${sudo_reason:-$spec_sudo}"
+if [ -n "$effective_sudo" ]; then
+  echo "ask: SUDO NOTICE — this task may request elevation via privileged-request ($effective_sudo)" >&2
 fi
 
 if [ "$headless" = 1 ]; then
-  task=$(build_task "Reply in at most @N@ lines." "$@")
+  task=$(build_task "Reply in at most @N@ lines." "$sudo_reason" "$@")
+  perm_mode=headless
+  [ "$spec_readonly" = 1 ] && perm_mode=readonly
+
+  # Propagate delegation context to agent-gate in headless runs too.
+  [ -n "${HC_TERMINAL_ID:-}" ] && export ASK_PARENT="$HC_TERMINAL_ID"
+  export ASK_READONLY="$spec_readonly"
+  if [ -n "$spec_file" ] && [ -f "$spec_file" ] && command -v jq >/dev/null 2>&1; then
+    ASK_SPEC_FILES=$(jq -r '(.files // []) | join("\n")' "$spec_file" 2>/dev/null || true)
+    export ASK_SPEC_FILES
+  fi
+
   case "$agent" in
   omp)
     argv=(omp -p "$task")
@@ -168,6 +292,7 @@ if [ "$headless" = 1 ]; then
     argv=(copilot -p "$task" -s)
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
+    append_permission_args "$agent" "$perm_mode" "$spec_file"
     exec "${argv[@]}"
     ;;
   agy)
@@ -180,6 +305,7 @@ if [ "$headless" = 1 ]; then
     argv=(codex exec)
     append_model_args "$agent" "$model" "$effort"
     append_effort_args "$agent" "$effort"
+    append_permission_args "$agent" "$perm_mode" "$spec_file"
     argv+=("$task")
     exec "${argv[@]}"
     ;;
@@ -204,16 +330,18 @@ if [ -z "$target" ]; then
   argv=("$(command -v "$agent")")
   append_model_args "$agent" "$model" "$effort"
   append_effort_args "$agent" "$effort"
+  append_permission_args "$agent" interactive ""
   # hc run starts programs with the core's bare environment; pass ours.
-  envs=()
+  envs=("ASK_PARENT=$HC_TERMINAL_ID")
   while IFS='=' read -r k _; do
-    case "$k" in HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | ANTIGRAVITY_*) ;; *) envs+=("$k=${!k}") ;; esac
+    case "$k" in HC_TERMINAL_ID | TERM | TERM_* | SHLVL | PWD | OLDPWD | _ | ANTIGRAVITY_* | ASK_PARENT | ASK_READONLY | ASK_SPEC_FILES) ;; *) envs+=("$k=${!k}") ;; esac
   done < <(env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true)
   hc run --bg --outlive-parent --name "$target" --cwd "$PWD" env "${envs[@]}" "${argv[@]}" >/dev/null
   # A send during boot can be dropped.
   hc wait "$target" >/dev/null
 fi
 
-task=$(build_task "When finished, reply by running: ask --reply $HC_TERMINAL_ID '<at most @N@ lines, or a .agents/handoff/ path>'" "$@")
+write_pane_context "$target" "$spec_file"
+task=$(build_task "When finished, reply by running: ask --reply $HC_TERMINAL_ID '<at most @N@ lines, or a .agents/handoff/ path>'" "$sudo_reason" "$@")
 hc send "$target" "$task"
 echo "sent to $target; the reply will arrive as REPORT(...)"

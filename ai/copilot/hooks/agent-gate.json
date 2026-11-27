@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "command": "agent-gate --client copilot",
+        "timeoutSec": 120
+      }
+    ]
+  }
+}

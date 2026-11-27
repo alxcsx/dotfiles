@@ -70,3 +70,36 @@ append_effort_args() {
   feynman) ;; # feynman has no CLI effort flag
   esac
 }
+
+# Append safe sandbox and approval defaults to argv[].
+# Usage: append_permission_args <agent> <interactive|headless|readonly> [spec_file]
+append_permission_args() {
+  local a="$1" mode="${2:-interactive}" spec="${3:-}"
+  case "$a" in
+  codex)
+    case "$mode" in
+    readonly) argv+=(-s read-only -a never) ;;
+    headless) argv+=(-s workspace-write -a never) ;;
+    *) argv+=(-s workspace-write --approve-for-me) ;;
+    esac
+    ;;
+  copilot)
+    # Direct sudo is always blocked; git push is left to agent-gate so the
+    # orchestrator can review and approve it.
+    argv+=(--sandbox --assisted-approval --deny-tool="shell(sudo:*)")
+    if [ "$mode" = readonly ]; then
+      argv+=(--deny-tool="write")
+    elif [ -n "$spec" ] && [ -f "$spec" ] && command -v jq >/dev/null 2>&1; then
+      local file_count f
+      file_count=$(jq -r '(.files // []) | length' "$spec" 2>/dev/null || echo 0)
+      if [ "$file_count" -eq 0 ]; then
+        argv+=(--deny-tool="write")
+      else
+        while IFS= read -r f; do
+          [ -n "$f" ] && argv+=(--allow-tool="write($f)")
+        done < <(jq -r '(.files // [])[]' "$spec" 2>/dev/null || true)
+      fi
+    fi
+    ;;
+  esac
+}

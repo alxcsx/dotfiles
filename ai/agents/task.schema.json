@@ -10,6 +10,8 @@
     "files": { "type": "array", "items": { "type": "string" }, "description": "Paths it may edit. Empty or missing means read-only." },
     "accept": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Commands that prove the work; the agent runs each and reports pass/fail." },
     "effort": { "type": "string", "enum": ["none", "off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"], "description": "Optional reasoning/thinking effort level for the agent." },
+    "needs_sudo": { "type": "boolean", "default": false, "description": "Declare up front if the task may require privileged-request elevation." },
+    "sudo_reason": { "type": "string", "description": "Short reason why elevated privileges may be needed; implies needs_sudo." },
     "report_max_lines": { "type": "integer", "minimum": 1, "default": 15 }
   }
 }

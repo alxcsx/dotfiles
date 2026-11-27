@@ -93,11 +93,19 @@ install_claude_plugins() {
 }
 step "Install Claude Code plugins" install_claude_plugins
 
-step "Create Copilot config directory" mkdir -p "$COPILOT_DIR"
+step "Create Copilot config directory" mkdir -p "$COPILOT_DIR/hooks"
 step --skip-if 'merge_json --check "$MODULE_DIR/copilot/settings.json" "$COPILOT_DIR/settings.json"' \
   "Merge Copilot settings" \
   merge_json "$MODULE_DIR/copilot/settings.json" "$COPILOT_DIR/settings.json"
 link_file -m "Link agent rules for Copilot" "$AGENTS_MD" "$COPILOT_DIR/copilot-instructions.md"
+link_file -m "Link Copilot permission gate hook" "$MODULE_DIR/copilot/hooks/agent-gate.json" "$COPILOT_DIR/hooks/agent-gate.json"
+
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
+step "Create Codex config directory" mkdir -p "$CODEX_DIR/rules"
+link_file -m "Link agent rules for Codex" "$AGENTS_MD" "$CODEX_DIR/AGENTS.md"
+# Note: Codex requires trusting hooks once interactively via `/hooks`.
+link_file -m "Link Codex permission gate hook" "$MODULE_DIR/codex/hooks.json" "$CODEX_DIR/hooks.json"
+link_file -m "Link Codex internal tool rules" "$MODULE_DIR/codex/rules/internal.rules" "$CODEX_DIR/rules/internal.rules"
 
 # unset PI_CODING_AGENT_DIR (stale in shells started before pi was retired)
 # so herdr installs into omp's default agent dir.
@@ -118,6 +126,7 @@ step --skip-if '[ -f "$COPILOT_DIR/hooks/herdr-agent-state.sh" ]' \
   env COPILOT_HOME="$COPILOT_DIR" herdr integration install copilot
 
 link_file -m "Install ask (agent delegation)" "$MODULE_DIR/bin/ask" "$BIN_DIR/ask"
+link_file -m "Install agent-gate (permission hook)" "$MODULE_DIR/bin/agent-gate" "$BIN_DIR/agent-gate"
 link_file -m "Install orch launcher" "$MODULE_DIR/bin/orch" "$BIN_DIR/orch"
 link_file -m "Install agent-quota board" "$MODULE_DIR/bin/agent-quota" "$BIN_DIR/agent-quota"
 link_file -m "Install privileged request helper" "$MODULE_DIR/bin/privileged-request" "$BIN_DIR/privileged-request"

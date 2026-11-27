@@ -1,0 +1,83 @@
+# Internal agent-orchestration and coordination tools that need to run outside
+# Codex's workspace-write sandbox (e.g. talking to Herdr daemon or reading/writing
+# XDG state) without prompting the user on every invocation.
+
+prefix_rule(
+    pattern = ["ask"],
+    decision = "allow",
+    justification = "Internal agent delegation, replies, and permission-gate decisions",
+    match = [
+        "ask --reply t72 done",
+        "ask --pending",
+        "ask --allow req-123 ok",
+        "ask --deny req-123 no",
+        "ask omp:deepseek-v4.1-flash check status",
+    ],
+)
+
+prefix_rule(
+    pattern = ["hc", ["ls", "get", "read", "send", "wait", "events", "templates"]],
+    decision = "allow",
+    justification = "Read-only and messaging Herdr commands (excludes arbitrary hc run/exec/file)",
+    match = [
+        "hc ls --json",
+        "hc get t72 --json",
+        "hc read agy --lines 30",
+        "hc send t72 hello",
+        "hc wait t72",
+    ],
+    not_match = [
+        "hc run bash",
+        "hc exec uname",
+        "hc kill t72",
+    ],
+)
+
+prefix_rule(
+    pattern = ["agent-quota"],
+    decision = "allow",
+    justification = "Internal agent quota board",
+    match = [
+        "agent-quota",
+        "agent-quota set claude low 2026-11-28T02:00:00-03:00",
+    ],
+)
+
+prefix_rule(
+    pattern = ["agents-index"],
+    decision = "allow",
+    justification = "Regenerate .agents/INDEX.md",
+    match = [
+        "agents-index",
+        "agents-index /tmp/repo",
+    ],
+)
+
+prefix_rule(
+    pattern = ["orch"],
+    decision = "allow",
+    justification = "Launch agent panes in Herdr",
+    match = [
+        "orch",
+        "orch omp:deepseek-v4.1-flash agy:hydrogen",
+    ],
+)
+
+prefix_rule(
+    pattern = ["privileged-request"],
+    decision = "allow",
+    justification = "Privileged helper enforces its own OS admin dialog or operator queue",
+    match = [
+        "privileged-request check",
+        "privileged-request run \"install pkg\"",
+    ],
+)
+
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "forbidden",
+    justification = "Never run sudo directly; use privileged-request run \"reason and rollback\"",
+    match = [
+        "sudo apt update",
+    ],
+)

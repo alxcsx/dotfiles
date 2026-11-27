@@ -1,6 +1,7 @@
 {
   "model": "auto",
   "autoTier": "efficiency",
+  "defaultPermissionMode": "assisted",
   "footer": {
     "showQuota": true
   }

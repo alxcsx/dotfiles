@@ -1,0 +1,303 @@
+#!/usr/bin/env bash
+# Shared PreToolUse permission gate for delegated agents (copilot, codex, etc.).
+# Reads hook JSON on stdin, enforces hard safety boundaries, and escalates
+# sensitive actions (e.g. git push, out-of-scope writes) to the orchestrator
+# terminal via Herdr (`hc send`) + file-based decision handoff.
+#
+# Usage: agent-gate [--client copilot|codex|auto]
+set -euo pipefail
+
+client="auto"
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --client)
+    [ $# -ge 2 ] || { echo "agent-gate: --client requires a value" >&2; exit 2; }
+    client="$2"
+    shift 2
+    ;;
+  --client=*)
+    client="${1#*=}"
+    shift
+    ;;
+  *)
+    echo "agent-gate: unknown arg '$1'" >&2
+    exit 2
+    ;;
+  esac
+done
+
+STATE_DIR="${AGENT_GATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/agent-gate}"
+TIMEOUT="${AGENT_GATE_TIMEOUT:-110}"
+HC_BIN="${AGENT_GATE_HC:-hc}"
+
+input=$(cat)
+[ -n "$input" ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+
+if [ "$client" = auto ]; then
+  if jq -e 'has("toolName") or has("toolArgs")' >/dev/null 2>&1 <<<"$input"; then
+    client="copilot"
+  else
+    client="codex"
+  fi
+fi
+
+emit_decision() {
+  local decision="$1" reason="${2:-}"
+  if [ "$client" = copilot ]; then
+    if [ -n "$reason" ]; then
+      jq -n --arg d "$decision" --arg r "$reason" \
+        '{permissionDecision: $d, permissionDecisionReason: $r}'
+    else
+      jq -n --arg d "$decision" '{permissionDecision: $d}'
+    fi
+  else
+    if [ -n "$reason" ]; then
+      jq -n --arg d "$decision" --arg r "$reason" \
+        '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: $d, permissionDecisionReason: $r}}'
+    else
+      jq -n --arg d "$decision" \
+        '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: $d}}'
+    fi
+  fi
+}
+
+# Normalize tool name, shell command, and target file path across Claude/Codex/Copilot schemas.
+tool=$(jq -r '.tool_name // .toolName // ""' <<<"$input")
+cmd=$(jq -r '
+  (.tool_input // .toolArgs // {}) as $a
+  | if ($a | type) == "string" then ($a | fromjson? // {}) else $a end
+  | .command // .cmd // ""
+' <<<"$input")
+path=$(jq -r '
+  (.tool_input // .toolArgs // {}) as $a
+  | if ($a | type) == "string" then ($a | fromjson? // {}) else $a end
+  | .file_path // .path // .target_file // ""
+' <<<"$input")
+
+tool_lc=$(printf '%s' "$tool" | tr 'A-Z' 'a-z')
+
+is_shell_tool=0
+case "$tool_lc" in
+*bash* | *shell* | *exec* | *terminal* | *command*) is_shell_tool=1 ;;
+esac
+
+is_write_tool=0
+case "$tool_lc" in
+*write* | *edit* | *patch* | *create* | *replace* | *delete* | *remove*) is_write_tool=1 ;;
+esac
+
+# Strip quoted literals (keeping `$(` and backticks inside double quotes so
+# command substitution is never hidden) to check whether a shell command is a
+# single, unchained invocation of a trusted internal tool.
+strip_safe_quotes() {
+  awk '
+    BEGIN { sq = 0; dq = 0; esc = 0 }
+    {
+      if (NR > 1) printf "\n"
+      n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (sq) {
+          if (c == "\047") sq = 0
+        } else if (dq) {
+          if (esc) { esc = 0; continue }
+          if (c == "\\") { esc = 1; continue }
+          if (c == "\"") { dq = 0; continue }
+          if (c == "`") { printf "`"; continue }
+          if (c == "$" && substr($0, i + 1, 1) == "(") { printf "$("; i++; continue }
+        } else {
+          if (esc) { esc = 0; continue }
+          if (c == "\\") { esc = 1; continue }
+          if (c == "\047") { sq = 1; continue }
+          if (c == "\"") { dq = 1; continue }
+          printf "%s", c
+        }
+      }
+    }
+  ' <<<"$1"
+}
+
+is_safe_internal_cmd() {
+  local raw="$1" stripped first_line bin sub delim last_line
+  stripped=$(strip_safe_quotes "$raw")
+
+  # Allow multiline heredoc only for `privileged-request run ... <<DELIM ... DELIM`.
+  if [[ "$stripped" == *$'\n'* ]]; then
+    first_line="${stripped%%$'\n'*}"
+    if printf '%s' "$first_line" | grep -Eq '([;&|`]|[$][(]|[<>][(])'; then
+      return 1
+    fi
+    read -r bin sub _ <<<"$first_line"
+    [ "${bin##*/}" = "privileged-request" ] || return 1
+    if [[ "$raw" =~ \<\<-?[[:space:]]*[\'\"]?([A-Za-z_][A-Za-z0-9_]*)[\'\"]? ]]; then
+      delim="${BASH_REMATCH[1]}"
+      last_line=$(printf '%s\n' "$raw" | awk 'NF { line = $0 } END { print line }')
+      [ "$last_line" = "$delim" ] && return 0
+    fi
+    return 1
+  fi
+
+  # Single-line command must not chain or substitute commands outside quotes.
+  if printf '%s' "$stripped" | grep -Eq '([;&|`]|[$][(]|[<>][(])'; then
+    return 1
+  fi
+
+  read -r bin sub _ <<<"$stripped"
+  bin="${bin##*/}"
+  case "$bin" in
+  ask | agent-quota | agents-index | orch | privileged-request)
+    return 0
+    ;;
+  hc)
+    case "$sub" in
+    ls | get | read | send | wait | events | templates) return 0 ;;
+    *) return 1 ;;
+    esac
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+# --- Rule 0: Trusted internal coordination tools (single, unchained command) --
+if [ "$is_shell_tool" = 1 ] && [ -n "$cmd" ] && is_safe_internal_cmd "$cmd"; then
+  emit_decision "allow" "Trusted internal tool."
+  exit 0
+fi
+
+# --- Rule 1: Hard boundaries (always enforced, orchestrated or not) ----------
+if [ "$is_shell_tool" = 1 ] && [ -n "$cmd" ]; then
+  # Direct sudo is never allowed; must go through OS-native privileged-request.
+  if printf '%s' "$cmd" | grep -Eq '(^|[;&|(`[:space:]])sudo([[:space:]]|$)'; then
+    emit_decision "deny" 'Never run sudo directly. Declare sudo need at task start and use: privileged-request run "reason and rollback"'
+    exit 0
+  fi
+
+  # Catastrophic filesystem wipes are never allowed.
+  if printf '%s' "$cmd" | grep -Eq 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+(/|/\*|~|\$HOME)([[:space:]]|$)'; then
+    emit_decision "deny" "Catastrophic recursive delete of root or home is blocked."
+    exit 0
+  fi
+fi
+
+# --- Resolve delegation context (env var or per-pane state written by ask) ---
+parent="${ASK_PARENT:-}"
+readonly_mode="${ASK_READONLY:-0}"
+spec_files="${ASK_SPEC_FILES:-}"
+
+if [ -z "$parent" ] && [ -n "${HC_TERMINAL_ID:-}" ] && [ -f "$STATE_DIR/panes/${HC_TERMINAL_ID}.json" ]; then
+  pane_state="$STATE_DIR/panes/${HC_TERMINAL_ID}.json"
+  parent=$(jq -r '.parent // ""' "$pane_state" 2>/dev/null || true)
+  [ "$readonly_mode" = 1 ] || readonly_mode=$(jq -r 'if .readonly then "1" else "0" end' "$pane_state" 2>/dev/null || echo 0)
+  [ -n "$spec_files" ] || spec_files=$(jq -r '(.files // []) | join("\n")' "$pane_state" 2>/dev/null || true)
+fi
+
+# Not a delegated session: do not interfere beyond hard boundaries above.
+[ -n "$parent" ] || exit 0
+
+# --- Rule 2: Read-only spec enforcement --------------------------------------
+if [ "$readonly_mode" = 1 ] && [ "$is_write_tool" = 1 ]; then
+  emit_decision "deny" "Task is read-only (spec has no editable files)."
+  exit 0
+fi
+
+# --- Rule 3: Decide whether this call needs orchestrator review --------------
+needs_review=0
+reason_tag=""
+
+if [ "$is_shell_tool" = 1 ] && [ -n "$cmd" ]; then
+  # Escalate git push (allowed if orchestrator approves), destructive git ops,
+  # rm -rf, and network-mutating commands.
+  if printf '%s' "$cmd" | grep -Eq '(^|[;&|(`[:space:]])git[[:space:]]+(push|reset[[:space:]]+--hard|clean[[:space:]]+-[a-zA-Z]*f|branch[[:space:]]+-D|checkout[[:space:]]+--[[:space:]]+\.)'; then
+    needs_review=1
+    reason_tag="git-write"
+  elif printf '%s' "$cmd" | grep -Eq '(^|[;&|(`[:space:]])rm[[:space:]]+-[a-zA-Z]*r'; then
+    needs_review=1
+    reason_tag="recursive-rm"
+  elif printf '%s' "$cmd" | grep -Eq '(^|[;&|(`[:space:]])(curl|wget|ssh|scp|rsync)[[:space:]]'; then
+    needs_review=1
+    reason_tag="network-cmd"
+  fi
+fi
+
+if [ "$is_write_tool" = 1 ] && [ -n "$path" ]; then
+  base=$(basename "$path")
+  case "$base" in
+  .env | .env.* | *secret* | *credential*)
+    needs_review=1
+    reason_tag="sensitive-file"
+    ;;
+  esac
+  if [ "$needs_review" = 0 ] && [ -n "$spec_files" ]; then
+    in_scope=0
+    while IFS= read -r allowed; do
+      [ -n "$allowed" ] || continue
+      case "$path" in
+      "$allowed" | */"$allowed" | "$allowed"/*) in_scope=1; break ;;
+      esac
+    done <<<"$spec_files"
+    if [ "$in_scope" = 0 ]; then
+      needs_review=1
+      reason_tag="out-of-spec-write"
+    fi
+  fi
+fi
+
+# Routine in-scope operations pass without bothering the orchestrator.
+if [ "$needs_review" = 0 ]; then
+  emit_decision "allow"
+  exit 0
+fi
+
+# --- Rule 4: Escalate to orchestrator over Herdr + decision file -------------
+mkdir -p "$STATE_DIR/requests"
+req_id="req-$(date +%s)-$$-$RANDOM"
+req_file="$STATE_DIR/requests/${req_id}.req.json"
+dec_file="$STATE_DIR/requests/${req_id}.decision.json"
+worker="${HC_TERMINAL_ID:-$client}"
+summary="${cmd:-$path}"
+[ -n "$summary" ] || summary="$tool"
+# Keep the Herdr notification compact (single line, max 200 chars).
+summary_one=$(printf '%s' "$summary" | tr '\n\r\t' '   ' | cut -c1-200)
+
+jq -n \
+  --arg id "$req_id" \
+  --arg worker "$worker" \
+  --arg parent "$parent" \
+  --arg client "$client" \
+  --arg tool "$tool" \
+  --arg tag "$reason_tag" \
+  --arg cmd "$cmd" \
+  --arg path "$path" \
+  --arg cwd "$PWD" \
+  '{id: $id, worker: $worker, parent: $parent, client: $client, tool: $tool, tag: $tag, command: $cmd, path: $path, cwd: $cwd}' \
+  >"$req_file"
+
+trap 'rm -f "$req_file" "$dec_file"' EXIT
+
+if ! "$HC_BIN" send "$parent" \
+  "PERM_REQUEST($req_id) [$reason_tag] from $worker ($client $tool): $summary_one — decide: ask --allow $req_id | ask --deny $req_id '<reason>'" \
+  >/dev/null 2>&1; then
+  emit_decision "deny" "Could not reach orchestrator '$parent' to review $reason_tag request."
+  exit 0
+fi
+
+# Poll for atomic decision file written by `ask --allow` / `ask --deny`.
+deadline=$(( $(date +%s) + TIMEOUT ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  if [ -f "$dec_file" ]; then
+    decision=$(jq -r '.decision // "deny"' "$dec_file" 2>/dev/null || echo "deny")
+    dec_reason=$(jq -r '.reason // ""' "$dec_file" 2>/dev/null || true)
+    case "$decision" in
+    allow) emit_decision "allow" "${dec_reason:-Approved by orchestrator}" ;;
+    *) emit_decision "deny" "${dec_reason:-Denied by orchestrator}" ;;
+    esac
+    exit 0
+  fi
+  sleep 0.25
+done
+
+emit_decision "deny" "Timed out waiting for orchestrator ($parent) to review $reason_tag request ($req_id)."
+exit 0

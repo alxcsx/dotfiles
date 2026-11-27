@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-gate --client codex",
+            "timeout": 120,
+            "statusMessage": "Checking permission gate..."
+          }
+        ]
+      }
+    ]
+  }
+}
