@@ -40,7 +40,7 @@ for tool in pgcli sqlfluff check-jsonschema; do
   step "Install or update $tool (uv)" uv tool install --upgrade "$tool"
 done
 
-require_pkgs jq arch:bubblewrap
+require_pkgs jq arch:bubblewrap arch:chromium
 
 # GDScript formatter/linter (gdformat, gdlint) for Godot 4 projects.
 step "Install or update gdformat (uv)" \
