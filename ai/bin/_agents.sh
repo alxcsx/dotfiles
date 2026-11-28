@@ -92,7 +92,7 @@ append_permission_args() {
       [ -d "$state_dir" ] && argv+=(--add-dir "$state_dir")
       ;;
     *)
-      argv+=(-s workspace-write --approve-for-me)
+      argv+=(--approve-for-me)
       [ -d "$state_dir" ] && argv+=(--add-dir "$state_dir")
       ;;
     esac
