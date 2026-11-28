@@ -522,3 +522,35 @@ append_fishrc() {
   local rc_file="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
   _append_rc_module "$1" "$2" "$rc_file" "fish" "fish"
 }
+
+# Prompt yes/no during interactive install; returns 0 for yes, 1 for no.
+# Respects DOT_DRY_RUN and non-interactive stdin by returning the default.
+# Usage: ask_yn "Question?" [y|n]
+ask_yn() {
+  local prompt="$1" default="${2:-n}" hint="[y/N]" answer=""
+  [ "$default" = "y" ] && hint="[Y/n]"
+  if [ "${DOT_DRY_RUN:-0}" = "1" ] || [ ! -t 0 ]; then
+    [ "$default" = "y" ]
+    return $?
+  fi
+  printf '%b%s %s ' "${BLUE}[?]${NC}" "$prompt" "$hint" >&2
+  read -r answer
+  [ -z "$answer" ] && answer="$default"
+  case "$answer" in
+  [yY] | [yY][eE][sS]) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+# Prompt for a string value with a default; prints the chosen value to stdout.
+# Usage: val=$(ask_input "Label" "default")
+ask_input() {
+  local prompt="$1" default="${2:-}" answer=""
+  if [ "${DOT_DRY_RUN:-0}" = "1" ] || [ ! -t 0 ]; then
+    printf '%s' "$default"
+    return 0
+  fi
+  printf '%b%s [%s]: ' "${BLUE}[?]${NC}" "$prompt" "$default" >&2
+  read -r answer
+  printf '%s' "${answer:-$default}"
+}

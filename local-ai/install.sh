@@ -32,6 +32,7 @@ step "Create local-ai directories" mkdir -p \
 host_name="${HOSTNAME:-$(uname -n)}"
 host_name="${host_name%%.*}"
 profile=$(detect_local_ai_profile)
+profile=$(ask_input "Hardware profile (gpu-16gb, gpu-8gb, cpu)" "$profile")
 preset_label="$profile"
 profile_file="$MODULE_DIR/profiles/$profile.ini"
 if [ -f "$MODULE_DIR/hosts/${host_name}.ini" ]; then
@@ -54,17 +55,13 @@ fi
 pull_args=(--profile "$profile")
 [ -f "$MODULE_DIR/hosts/${host_name}.manifest" ] && pull_args=(--host "$host_name")
 
-if [ "${DOT_DRY_RUN:-0}" = "0" ] && [ -t 0 ]; then
-  printf 'Download models (%s) now? [y/N] ' "${pull_args[*]}"
-  read -r answer
-  case "$answer" in
-  [yY] | [yY][eE][sS])
-    "$LOCAL_AI_BIN_DIR/local-ai-pull" "${pull_args[@]}"
-    ;;
-  *)
-    printf 'Skipped model download. Run later: local-ai-pull %s\n' "${pull_args[*]}"
-    ;;
-  esac
+if ask_yn "Download models (${pull_args[*]}) now?" n; then
+  "$LOCAL_AI_BIN_DIR/local-ai-pull" "${pull_args[@]}"
 else
   printf 'To download models later: local-ai-pull %s\n' "${pull_args[*]}"
+fi
+
+if [ "${OS:-$(uname -s | tr '[:upper:]' '[:lower:]')}" = "linux" ] &&
+  ask_yn "Enable and start llamacpp-daemon.service now?" n; then
+  step "Enable llamacpp-daemon.service" systemctl --user enable --now llamacpp-daemon.service
 fi

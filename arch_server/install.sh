@@ -41,17 +41,7 @@ units_changed=0
 install_server_submodule() {
   local sub="$1" label="$2"
   shift 2
-  [ -t 0 ] && [ "${DOT_DRY_RUN:-0}" = "0" ] || {
-    printf 'Optional submodule %s skipped in non-interactive/dry-run mode.\n' "$sub"
-    return 0
-  }
-  printf 'Install %s submodule (%s)? [y/N] ' "$sub" "$label"
-  local answer
-  read -r answer
-  case "$answer" in
-  [yY] | [yY][eE][sS]) ;;
-  *) return 0 ;;
-  esac
+  ask_yn "Install $sub submodule ($label)?" n || return 0
 
   mkdir -p "$SERVER_BIN_DIR" "$SERVER_UNITS"
   local tool unit
@@ -73,6 +63,16 @@ install_server_submodule "network" "Cloudflare DDNS, WAN check, file share, heal
 
 install_server_submodule "backup" "Restic off-site backup, btrfs snapshots, weekly scan" \
   backup.sh btrfs-snapshot.sh maintenance-scan.sh
+
+if ask_yn "Install static-sites submodule (Caddy + File Browser Quadlets)?" n; then
+  QUADLET_DIR="$HOME/.config/containers/systemd"
+  mkdir -p "$QUADLET_DIR"
+  for q in "$MODULE_DIR/static-sites"/*.container; do
+    [ -e "$q" ] || continue
+    link_file "$q" "$QUADLET_DIR/$(basename "$q")"
+  done
+  units_changed=1
+fi
 
 if [ "$units_changed" = 1 ]; then
   step "Reload systemd user units" systemctl --user daemon-reload
