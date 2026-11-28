@@ -1,6 +1,6 @@
 [Unit]
 Description=Read-only btrfs snapshot of @home (undo for accidental file loss)
-Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/btrfs-snapshot.sh
+Documentation=https://github.com/alxcsx/dotfiles/tree/main/arch_server/backup
 ConditionPathIsMountPoint=/home
 
 [Service]

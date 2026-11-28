@@ -1,10 +1,17 @@
 # Shared helpers for ask and orch (sourced, not invoked directly).
 
-# Resolve short model aliases (currently agy) to CLI model IDs.
+# Resolve short model aliases (agy and local-ai omp models) to CLI model IDs.
 # Usage: resolve_model <agent> <model> [effort]
 resolve_model() {
   local agent="$1" model="$2" effort="${3:-}"
   [ -n "$model" ] || return 0
+  if [ "$agent" = omp ]; then
+    case "$model" in
+    local-code | local-general | local-fast) printf 'llamacpp/%s' "$model" ;;
+    *) printf '%s' "$model" ;;
+    esac
+    return 0
+  fi
   if [ "$agent" != agy ]; then
     printf '%s' "$model"
     return 0

@@ -1,0 +1,4 @@
+# alias|profiles|hf_repo|filename|approx_gb
+local-code|gpu-16gb|Qwen/Qwen2.5-Coder-14B-Instruct-GGUF|qwen2.5-coder-14b-instruct-q4_k_m.gguf|9
+local-general|gpu-16gb,gpu-8gb|unsloth/Qwen3.5-9B-GGUF|Qwen3.5-9B-UD-Q6_K_XL.gguf|8
+local-fast|gpu-16gb,gpu-8gb,cpu|bartowski/Phi-3.5-mini-instruct-GGUF|Phi-3.5-mini-instruct-Q4_K_M.gguf|3

@@ -101,3 +101,13 @@ for agent in $AGENTS; do
   [ "$agent" = claude ] && note="$note; $(claude_5h)"
   printf '%-8s %-5s %-12s %s\n' "$agent" "$status" "$route" "$note"
 done
+
+llamacpp_status() {
+  local url="${LLAMACPP_URL:-http://127.0.0.1:58000/v1/models}"
+  if command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 "$url" >/dev/null 2>&1; then
+    printf '%-8s %-5s %-12s %s\n' llamacpp ok local "local-code, local-general, local-fast ready"
+  else
+    printf '%-8s %-5s %-12s %s\n' llamacpp out offline "start llamacpp-daemon.service"
+  fi
+}
+llamacpp_status

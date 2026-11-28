@@ -1,0 +1,4 @@
+# Per-host local-ai model list for derby (see ai-assistant/hermes/fleet.conf)
+# alias|hf_repo|remote_filename|local_filename|approx_gb
+local-general|unsloth/Qwen3.5-9B-GGUF|Qwen3.5-9B-UD-Q6_K_XL.gguf|Qwen3.5-9B-UD-Q6_K_XL.gguf|8
+local-fast|Qwen/Qwen3-8B-GGUF|Qwen3-8B-Q4_K_M.gguf|qwen3-8b.gguf|5

@@ -55,8 +55,13 @@ tests and troubleshoots; do not spend credits on it.
 | `agy:neon`, `agy:hydrogen`, `agy:argon` | architecture, second opinions, reviews (`hydrogen` for technical/statistical/final diff review; `neon` for prose) |
 | `claude` / `copilot` | last resort: single pre-push diff review; `copilot` also for small cross-checks (e.g., verifying URLs/references) |
 | `codex` (`codex exec`) | preferred for complex implementation, hard debugging, and repo-wide refactors; also use for final review when an independent OpenAI-family perspective is useful |
+| `omp:local-code` | local `llama.cpp` (`llamacpp/local-code`, e.g. `qwen3:14b` / `qwen2.5-coder:14b`): well-scoped edits, docstrings, simple tests, and maintenance script drafts (free/unlimited when `llamacpp` is `ok` in `agent-quota`). Supports `--effort off|low|medium|high`. Never use for architecture or complex debugging |
+| `omp:local-general` | local `llama.cpp` (`llamacpp/local-general`, e.g. `gpt-oss:20b` / `qwen3.5:9b`): writing drafts, docs, summaries, isolated HTML/CSS UI design, and log/system triage (`journalctl`, disk, services). Supports `--effort` |
+| `omp:local-fast` | local `llama.cpp` (`llamacpp/local-fast`, e.g. `qwen3:8b` / `phi-3.5-mini`): ultra-fast classification, field extraction, and short log/commit summaries (use `--effort off` for instant replies) |
 
-Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and `omp:glm-5.3-flash` (poor tool calling). Weak/free models never make design decisions or write conclusions; they only execute well-scoped tasks.
+For computer maintenance tasks, local models may read logs/status and draft idempotent scripts, but never run destructive commands or `sudo` directly — the orchestrator reviews and submits them via `privileged-request`.
+
+Avoid `omp:beam-free` (400 errors, corrupted paths), `omp:mimo-v2.6-flash`, and `omp:glm-5.3-flash` (poor tool calling). Weak/free/local models never make design decisions or write conclusions; they only execute well-scoped tasks.
 
 ## Delegating (only when `HC_TERMINAL_ID` is set)
 

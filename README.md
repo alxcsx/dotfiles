@@ -1,38 +1,45 @@
 # Dotfiles
 
-Minimal dotfiles manager for my configs.
-Currently i'm using Arch and MacOS, but it should work with other distros.
+Modular dotfiles manager for Arch Linux and macOS, orchestrated via `dot.sh`.
 
-## What it does
+## Modules
 
-- Manages modules through `dot.sh`
-- Installs and removes modules
+- `dev/` - Core development toolchain (`mise`, `uv`, XDG env)
+- `zsh/` - Zsh configuration and aliases
+- `kitty/` - Kitty terminal configuration
+- `emacs/` - Emacs configuration and launchers
+- `arch/` - Arch Linux desktop environment (Hyprland, Noctalia, host overrides)
+- `arch_server/` - Arch Linux server helpers (including `sudo-queue`)
+- `ai/` - Cross-agent orchestration (`ask`, `orch`, `agent-gate`, `agent-quota`, `omp`, `codex`, `claude`, `copilot`)
+- `local-ai/` - Local `llama.cpp` router (`llamacpp-daemon.service`), hardware/host presets, and on-demand GGUF puller (`local-ai-pull`)
+- `ai-assistant/` - Optional Linux server tooling for Hermes fleet and Laya ([setup](ai-assistant/README.md))
+- `macos/` - macOS-specific setup
 
-## Layout
-
-- `dot.sh` - entrypoint for install, uninstall, and status
-- `.utils/` - shared helpers used by the module scripts
-- `ai/` - OMP and remote-agent orchestration for development machines
-- `ai-assistant/` - optional Linux server tools for Hermes and local models
-  ([setup](ai-assistant/README.md))
+See [MACHINES.md](MACHINES.md) for per-machine hardware profiles, installed modules, and quick health checks.
 
 ## Usage
 
-Install a module:
+Install one or more modules:
 
 ```bash
-./dot.sh install zsh
+./dot.sh install dev zsh ai local-ai
 ```
 
-Remove a module:
+Preview without making changes:
 
 ```bash
-./dot.sh uninstall zsh
+./dot.sh --dry-run install local-ai
 ```
 
-Check installed modules:
+Check installed module status:
 
 ```bash
 ./dot.sh status
 ```
 
+Download local GGUF models on demand (for the current host manifest or a hardware profile):
+
+```bash
+local-ai-pull --host
+local-ai-pull --profile gpu-16gb
+```

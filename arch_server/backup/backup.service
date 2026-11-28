@@ -1,6 +1,6 @@
 [Unit]
 Description=Restic backup of the agent fleet to Google Drive
-Documentation=file:///home/alex/PLAN.md
+Documentation=https://github.com/alxcsx/dotfiles/tree/main/arch_server/backup
 After=network-online.target
 Wants=network-online.target
 
@@ -12,7 +12,7 @@ Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bi
 # is worse than no backup, because you keep believing you are covered — so the
 # output is captured and pushed to Telegram only when the exit code is non-zero.
 # `hermes send` talks to Telegram directly and works with the gateway stopped.
-ExecStart=/bin/bash -c 'out=$(%h/dotfiles/ai-assistant/hermes/backup.sh 2>&1); rc=$?; if [ $rc -ne 0 ]; then { echo "⚠️ Backup FAILED (exit $rc)"; echo; echo "$out" | tail -25; } | %h/.local/bin/hermes send -t telegram -f -; fi; exit $rc'
+ExecStart=/bin/bash -c 'out=$(%h/.local/bin/backup.sh 2>&1); rc=$?; if [ $rc -ne 0 ]; then { echo "⚠️ Backup FAILED (exit $rc)"; echo; echo "$out" | tail -25; } | %h/.local/bin/hermes send -t telegram -f -; fi; exit $rc'
 
 TimeoutStartSec=3600
 Nice=10

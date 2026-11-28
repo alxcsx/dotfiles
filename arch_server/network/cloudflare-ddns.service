@@ -1,6 +1,6 @@
 [Unit]
 Description=Cloudflare dynamic DNS — keep the Minecraft A record pointed at this machine
-Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/cloudflare-ddns.py
+Documentation=https://github.com/alxcsx/dotfiles/tree/main/arch_server/network
 After=network-online.target
 Wants=network-online.target
 
@@ -9,6 +9,6 @@ Type=oneshot
 # Config is read by the script from ~/.config/cloudflare-ddns/env (chmod 600,
 # machine-local, never committed). No EnvironmentFile here on purpose — one
 # source of truth for the config.
-ExecStart=/usr/bin/python3 %h/dotfiles/ai-assistant/hermes/cloudflare-ddns.py
+ExecStart=/usr/bin/python3 %h/.local/bin/cloudflare-ddns.py
 # A DDNS run is two API calls; anything slower than 2 minutes is a hung network.
 TimeoutStartSec=120

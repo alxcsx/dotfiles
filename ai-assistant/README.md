@@ -10,9 +10,8 @@ The installer links services but does not enable or start them, install models,
 apply fleet settings, or provision credentials. Configure the services needed on
 this server before enabling them:
 
-- Install `llama-server`, put model files on the machine, and edit
-  `~/.config/llamacpp/models-preset.ini` (seeded from the example). Then run
-  `systemctl --user enable --now llamacpp-daemon.service`.
+- Local `llama.cpp` is managed by the `local-ai` module (`./dot.sh install local-ai`).
+  Enable it with `systemctl --user enable --now llamacpp-daemon.service`.
 - For Laya, create `~/.local/share/laya` with Python 3.13 and install
   `laya[serve,mcp]` into that environment. Enable `laya-serve.service` if
   needed. To expose it to OMP, add `laya-mcp-server` to your OMP MCP config;
@@ -21,7 +20,3 @@ this server before enabling them:
   running `fleet-apply.sh`; enable the desired Hermes timers explicitly.
   Backup, networking, proxy, and Minecraft services require their own local
   configuration and credentials. No secrets belong in this repository.
-
-`ai/hermes`, `ai/llamacpp`, and `ai/laya` are compatibility symlinks to this
-module so existing server links and loaded service definitions keep working
-during migration. New references should use `ai-assistant`.

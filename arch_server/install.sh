@@ -33,3 +33,47 @@ if [[ -f /etc/kernel/cmdline ]] && ! grep -q "consoleblank=" /etc/kernel/cmdline
     sudo sed -i 's/$/ consoleblank=60/' /etc/kernel/cmdline
   step "Regenerate UKI initramfs" sudo mkinitcpio -P
 fi
+
+SERVER_BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
+SERVER_UNITS="$HOME/.config/systemd/user"
+units_changed=0
+
+install_server_submodule() {
+  local sub="$1" label="$2"
+  shift 2
+  [ -t 0 ] && [ "${DOT_DRY_RUN:-0}" = "0" ] || {
+    printf 'Optional submodule %s skipped in non-interactive/dry-run mode.\n' "$sub"
+    return 0
+  }
+  printf 'Install %s submodule (%s)? [y/N] ' "$sub" "$label"
+  local answer
+  read -r answer
+  case "$answer" in
+  [yY] | [yY][eE][sS]) ;;
+  *) return 0 ;;
+  esac
+
+  mkdir -p "$SERVER_BIN_DIR" "$SERVER_UNITS"
+  local tool unit
+  for tool in "$@"; do
+    link_file "$MODULE_DIR/$sub/$tool" "$SERVER_BIN_DIR/$tool"
+  done
+  for unit in "$MODULE_DIR/$sub"/*.service "$MODULE_DIR/$sub"/*.timer; do
+    [ -e "$unit" ] || continue
+    link_file "$unit" "$SERVER_UNITS/$(basename "$unit")"
+    units_changed=1
+  done
+}
+
+install_server_submodule "minecraft_server" "Minecraft join gate & password rotation" \
+  mc-gate mc-password mc-rotate-password.sh mc-sync-verified mc-verified
+
+install_server_submodule "network" "Cloudflare DDNS, WAN check, file share, healthguard" \
+  cloudflare-ddns.py wan-check share exo-healthguard
+
+install_server_submodule "backup" "Restic off-site backup, btrfs snapshots, weekly scan" \
+  backup.sh btrfs-snapshot.sh maintenance-scan.sh
+
+if [ "$units_changed" = 1 ]; then
+  step "Reload systemd user units" systemctl --user daemon-reload
+fi

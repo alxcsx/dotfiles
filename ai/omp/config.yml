@@ -8,6 +8,7 @@ modelRoles:
 defaultThinkingLevel: medium
 enabledProviders:
   - opencode-go
+  - llamacpp
 disabledExtensions:
   - context-file:user:GEMINI.md
   - context-file:user:CLAUDE.md

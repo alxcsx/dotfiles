@@ -1,0 +1,21 @@
+providers:
+  llamacpp:
+    baseUrl: http://127.0.0.1:58000/v1
+    api: openai-completions
+    apiKey: none
+    models:
+      - id: local-code
+        name: Local Code (14B)
+        contextWindow: 32768
+        maxTokens: 8192
+        reasoning: true
+      - id: local-general
+        name: Local General (9B/20B)
+        contextWindow: 32768
+        maxTokens: 8192
+        reasoning: true
+      - id: local-fast
+        name: Local Fast (8B/Mini)
+        contextWindow: 16384
+        maxTokens: 4096
+        reasoning: true

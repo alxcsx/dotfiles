@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Download GGUF models for local-ai on demand, checking free disk space first.
+# Usage:
+#   local-ai-pull --list
+#   local-ai-pull --host [name] [--list]
+#   local-ai-pull --profile <gpu-16gb|gpu-8gb|cpu>
+#   local-ai-pull <alias> [alias...]
+set -euo pipefail
+
+SELF=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
+MODULE_DIR=$(cd "$(dirname "$SELF")/.." && pwd)
+MANIFEST="$MODULE_DIR/models.manifest"
+HOSTS_DIR="$MODULE_DIR/hosts"
+MODELS_DIR="${LLAMACPP_MODELS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/llamacpp/models}"
+MIN_HEADROOM_GB=8
+
+usage() {
+  sed -n '2,7s/^# \{0,1\}//p' "$0" >&2
+  exit 2
+}
+
+detect_host() {
+  local h="${HOSTNAME:-$(uname -n)}"
+  printf '%s' "${h%%.*}"
+}
+
+list_models() {
+  local file="$1" is_host="${2:-0}"
+  printf '%-14s %-22s %-6s %s\n' "ALIAS" "SCOPE" "SIZE" "FILE"
+  if [ "$is_host" = 1 ]; then
+    while IFS='|' read -r alias repo remote_file local_file size_gb; do
+      [[ -z "$alias" || "$alias" == \#* ]] && continue
+      local mark=""
+      [ -s "$MODELS_DIR/$local_file" ] && mark=" (installed)"
+      printf '%-14s %-22s %-6s %s%s\n' "$alias" "$host_name" "${size_gb}G" "$local_file" "$mark"
+    done <"$file"
+  else
+    while IFS='|' read -r alias profiles repo filename size_gb; do
+      [[ -z "$alias" || "$alias" == \#* ]] && continue
+      local mark=""
+      [ -s "$MODELS_DIR/$filename" ] && mark=" (installed)"
+      printf '%-14s %-22s %-6s %s%s\n' "$alias" "$profiles" "${size_gb}G" "$filename" "$mark"
+    done <"$file"
+  fi
+}
+
+free_gb() {
+  df -BG --output=avail "$MODELS_DIR" 2>/dev/null | awk 'NR==2 {gsub(/[^0-9]/,"",$1); print $1}'
+}
+
+pull_one() {
+  local alias="$1" repo="$2" remote_file="$3" local_file="$4" size_gb="$5"
+  local dest="$MODELS_DIR/$local_file"
+  if [ -s "$dest" ]; then
+    echo "local-ai-pull: $alias already present ($dest)"
+    return 0
+  fi
+
+  local avail
+  mkdir -p "$MODELS_DIR"
+  avail=$(free_gb || echo 0)
+  if [ -n "$avail" ] && [ "$avail" -lt $((size_gb + MIN_HEADROOM_GB)) ]; then
+    echo "local-ai-pull: not enough free space in $MODELS_DIR (${avail}G free, need ${size_gb}G + ${MIN_HEADROOM_GB}G headroom)" >&2
+    return 1
+  fi
+
+  echo "local-ai-pull: downloading $alias (~${size_gb}G) from $repo/$remote_file..."
+  if command -v hf >/dev/null 2>&1; then
+    hf download "$repo" "$remote_file" --local-dir "$MODELS_DIR"
+  elif command -v huggingface-cli >/dev/null 2>&1; then
+    huggingface-cli download "$repo" "$remote_file" --local-dir "$MODELS_DIR"
+  else
+    curl -fL -C - -o "$MODELS_DIR/$remote_file.part" "https://huggingface.co/$repo/resolve/main/$remote_file"
+    mv "$MODELS_DIR/$remote_file.part" "$MODELS_DIR/$remote_file"
+  fi
+  if [ "$remote_file" != "$local_file" ] && [ -s "$MODELS_DIR/$remote_file" ]; then
+    mv "$MODELS_DIR/$remote_file" "$dest"
+  fi
+  [ -s "$dest" ] || { echo "local-ai-pull: download failed for $dest" >&2; return 1; }
+  echo "local-ai-pull: ready -> $dest"
+}
+
+[ $# -ge 1 ] || usage
+
+do_list=0
+mode=""
+profile=""
+host_name=""
+targets=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --list)
+    do_list=1
+    shift
+    ;;
+  --host)
+    mode="host"
+    if [ $# -ge 2 ] && [[ "${2:-}" != -* ]]; then
+      host_name="$2"
+      shift 2
+    else
+      host_name=$(detect_host)
+      shift
+    fi
+    ;;
+  --profile)
+    [ $# -ge 2 ] || usage
+    mode="profile"
+    profile="$2"
+    shift 2
+    ;;
+  -h | --help) usage ;;
+  -*) usage ;;
+  *)
+    targets+=("$1")
+    shift
+    ;;
+  esac
+done
+
+if [ "$mode" = "host" ]; then
+  host_manifest="$HOSTS_DIR/${host_name}.manifest"
+  [ -f "$host_manifest" ] || { echo "local-ai-pull: no host manifest '$host_manifest'" >&2; exit 1; }
+  if [ "$do_list" = 1 ]; then
+    list_models "$host_manifest" 1
+    exit 0
+  fi
+  while IFS='|' read -r alias repo remote_file local_file size_gb; do
+    [[ -z "$alias" || "$alias" == \#* ]] && continue
+    pull_one "$alias" "$repo" "$remote_file" "$local_file" "$size_gb"
+  done <"$host_manifest"
+  exit 0
+fi
+
+if [ "$do_list" = 1 ]; then
+  list_models "$MANIFEST" 0
+  exit 0
+fi
+
+matched=0
+while IFS='|' read -r alias profiles repo filename size_gb; do
+  [[ -z "$alias" || "$alias" == \#* ]] && continue
+  if [ "$mode" = "profile" ]; then
+    case ",$profiles," in
+    *,"$profile",*)
+      matched=1
+      pull_one "$alias" "$repo" "$filename" "$filename" "$size_gb"
+      ;;
+    esac
+  else
+    for t in "${targets[@]}"; do
+      if [ "$t" = "$alias" ]; then
+        matched=1
+        pull_one "$alias" "$repo" "$filename" "$filename" "$size_gb"
+      fi
+    done
+  fi
+done <"$MANIFEST"
+
+[ "$matched" = 1 ] || { echo "local-ai-pull: no matching profile or alias" >&2; exit 1; }

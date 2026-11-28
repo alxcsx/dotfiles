@@ -89,6 +89,7 @@ link_file "$MODULE_DIR/herdr-app/mods/agent-gate/main.js" "$HERDR_APP_DIR/mods/a
 
 step "Create omp agent directory" mkdir -p "$OMP_HOME/extensions"
 link_file "$MODULE_DIR/omp/config.yml" "$OMP_HOME/config.yml"
+link_file "$MODULE_DIR/omp/models.yml" "$OMP_HOME/models.yml"
 link_file "$MODULE_DIR/mcp.json" "$OMP_HOME/mcp.json"
 link_file -m "Install omp launcher" "$MODULE_DIR/bin/omp" "$BIN_DIR/omp"
 

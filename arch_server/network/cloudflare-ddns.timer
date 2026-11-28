@@ -1,6 +1,6 @@
 [Unit]
 Description=Run the Cloudflare DDNS update every 5 minutes
-Documentation=file:///home/alex/dotfiles/ai-assistant/hermes/cloudflare-ddns.py
+Documentation=https://github.com/alxcsx/dotfiles/tree/main/arch_server/network
 
 [Timer]
 # First run shortly after boot, then every 5 minutes. Only the record-changing

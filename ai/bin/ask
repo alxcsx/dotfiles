@@ -362,6 +362,13 @@ fi
 # Apply programmatic quota routing before building CLI flags.
 apply_quota_routing "$SCRIPT_DIR/agent-quota" "$agent"
 
+if [ "$agent" = omp ] && [[ "$model" == local-* || "$model" == llamacpp/* ]]; then
+  if command -v curl >/dev/null 2>&1 && ! curl -fsS --max-time 1 http://127.0.0.1:58000/v1/models >/dev/null 2>&1; then
+    echo "ask: local llamacpp daemon is not responding on 127.0.0.1:58000 (start with: systemctl --user start llamacpp-daemon.service)" >&2
+    exit 1
+  fi
+fi
+
 # Use an isolated git worktree when requested for write tasks.
 workdir="$PWD"
 wt_path=""

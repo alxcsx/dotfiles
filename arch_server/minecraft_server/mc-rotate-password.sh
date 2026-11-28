@@ -103,8 +103,8 @@ if [ "$NOTIFY" = 1 ]; then
     next_rot=$((next_rot + 604800))
   done
   expira=$(date -d "@$next_rot" '+%d/%m' 2>/dev/null || echo '?')
-  msg=$(printf 'Senha do Minecraft desta semana: %s\nServidor: mc.alexcs.me\nVale ate %s.' \
-               "$PW" "$expira")
+  msg=$(printf 'Senha do Minecraft desta semana: %s\nServidor: %s\nVale ate %s.' \
+               "$PW" "${MC_SERVER_HOST:-mc.<your-domain>}" "$expira")
   if printf '%s\n' "$msg" | hermes send -t telegram -f - >/dev/null 2>&1; then
     echo "announced on telegram"
   else
